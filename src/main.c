@@ -823,7 +823,9 @@ void write_out_frames_new(void *Object, int num, char feedback_char, unsigned in
                 fwrite(&write_processed, sizeof(int), 1, out_file);
                 fclose(out_file);
                 i = 0;
-
+		while(i < num){
+                        free(frames[i++]);
+                }
 	}
 	free(Object);
 }
