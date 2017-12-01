@@ -84,7 +84,7 @@ unsigned long line_offset_increments = 1;
 
 unsigned long mlk_alloc = 0;
 unsigned long mlk_free = 0;
-
+unsigned char eapol_flag = 0;
 
 
 
@@ -305,6 +305,24 @@ unsigned char validate_line_wifi(char *line){
 		}
 	}
 	return 0x00;
+}
+unsigned char validate_line_wifi_eapol(char *line){
+	if (line == 0x00) return 0x00;
+	while(*line++ != '\0'){
+		if (*line == 'E'){
+			if (*(line+1) == 'A'){
+				if (*(line+2) == 'P'){
+					if (*(line+3) == 'O'){
+						if(*(line+4) == 'L'){
+							eapol_flag = 1;
+							return 1;
+						}
+					}
+				}
+			}
+		}
+	}
+	return 0;
 }
 uint64_t get_number_of_lines(FILE *file){
 	uint64_t res = 0;
@@ -837,7 +855,10 @@ void process_wifi_frame(char *line, WiFi_Frame *wifi_frm){
         while(*t_ptr++ != ' '); // skip the number
         while(*t_ptr++ != ' '); // skip the date
         while(*t_ptr++ != ' '); // skip the time
-        //while(*t_ptr++ == ' '); // skip spaces
+        if (*t_ptr == ' ' ){
+		while(*t_ptr++ == ' '); // skip spaces
+		t_ptr--;
+	}
 	// compensate the ++
         // do the stuff, extract the source
 	// extract source mac
@@ -873,9 +894,39 @@ void process_wifi_frame(char *line, WiFi_Frame *wifi_frm){
 		free(source_mac);
 		free(destin_mac);
 			// we have timestamp, src_id, dst_id, skip to len, then
+		//special EAPOL packet case
+		//
 		while(*t_ptr++ != ' '); // get to padding
 		while(*t_ptr++ == ' '); // skipp padding
-		while(*t_ptr++ != ' '); // skip 802.11
+		while(*t_ptr++ != ' '){
+			if (eapol_flag == 1){
+				t_ptr -= 2;
+				if(manage_comparison(t_ptr, ' ', "EAPOL ")){
+					start_mac = t_ptr;
+			                end_mac = t_ptr;
+			                i = 0;
+			                while(*end_mac++ != ' ') i++; // get to the end
+			                source_mac = (char*)calloc(1, i+1); // aloc
+			                memcpy(source_mac, start_mac, i);
+			                wifi_frm->frame_type = enum_find_frame_type(source_mac, &Enum_Start);
+			                if (wifi_frm->frame_type == 0xFF){
+			                       wifi_frm->frame_type = enum_add(source_mac, &Enum_Start);
+			                }
+			                free(source_mac); // frr
+					t_ptr += i+1;
+					start_mac = t_ptr;
+			                end_mac = t_ptr;
+			                i = 0;
+			                while(*end_mac++ != ' ') i++; // example ...f3:4e:66:e6 EAPOL 151 Key (Message 1 of 4)00
+			                source_mac = (char*)calloc(1, i+1); // aloc
+			                memcpy(source_mac, start_mac, i);
+			                wifi_frm->frame_length = atoi(source_mac);
+			                free(source_mac); // frr
+					eapol_flag = 0;
+					return;
+				}
+			}
+		} // skip 802.11
 		// reusing variables
 		start_mac = t_ptr;
 		end_mac = t_ptr;
@@ -896,7 +947,7 @@ void process_wifi_frame(char *line, WiFi_Frame *wifi_frm){
 		memcpy(source_mac, start_mac, i);
 		wifi_frm->frame_type = enum_find_frame_type(source_mac, &Enum_Start);
 		if (wifi_frm->frame_type == 0xFF){
-			enum_add(source_mac, &Enum_Start);
+			wifi_frm->frame_type = enum_add(source_mac, &Enum_Start);
 		}
 		free(source_mac); // frr
 		// stored frame type
@@ -940,7 +991,7 @@ void process_wifi_frame(char *line, WiFi_Frame *wifi_frm){
 		start_mac = t_ptr;
                 end_mac = t_ptr;
                 i=0;
-                while(*end_mac++ != '\n'){ i++; if (*end_mac == '\0'){ i--; break; }}
+                while(*end_mac++ != '\0') i++;// if (*end_mac == '\0'){ i--; break; }}
                 source_mac = (char*)calloc(1, i+1);
                 memcpy(source_mac, start_mac, i);
                 wifi_frm->bssid = source_mac;
@@ -967,9 +1018,15 @@ WiFi_Frame **process_wifi_lines(char *ptr, unsigned long lines, unsigned int *fi
                                 break;
                         }
                 //      printf("line=t_upd\n");
-                        free(line); l_count++;
-                        line = t_upd[0];
-                        continue;
+			if(!validate_line_wifi_eapol(line)){
+				free(line);
+				l_count++;
+				line = t_upd[0];
+				continue;
+			}
+//                        free(line); l_count++;
+//                        line = t_upd[0];
+//                        continue;
                 }
         //      printf("\nValidation went fine");
                 wifi_arr[wifi_arr_i] = (WiFi_Frame*)calloc(1, sizeof(WiFi_Frame));
