@@ -660,6 +660,7 @@ void write_descriptor(Enum_Type *Enum, const char *file){
 		//sprintf_s(buf, "%d,%s\n", ptr->frame_type, ptr->name);
 		snprintf(buf, sizeof(buf), "%d,%s\n", ptr->frame_type, ptr->name);
 		while(buf[str_len++] != '\0');
+		str_len--;
 		fwrite(buf, str_len, 1, desc_file);
 		ptr = ptr->next;
 		str_len = 0;
