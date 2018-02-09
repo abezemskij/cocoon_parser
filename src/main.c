@@ -18,6 +18,7 @@
 #define AMODEFLAG  1<<5	// Auto mode, identify whether ZigBee or Wifi
 #define HELP_FLAG  1<<6 // Help	
 #define PARAMETERF 1<<7 // Parameter for input/output is parsed next
+#define IP_SHOR_F  1<<8 // IP Short version
 #define WIN_MODE 1
 #define LINE_INIT  100000
 
@@ -40,7 +41,14 @@ typedef struct ZigBee_Frame{
 	unsigned char packet_size;
 	unsigned char flags; // 1 Bad_Checksum
 }ZigBee_Frame;
+typedef struct IP_Frame{
+	uint64_t timestamp;
+	unsigned char src_ip;
+	unsigned char dst_ip; // Potentially can be switched to short, analysis is required.
+	unsigned short protocol;
+	unsigned short packet_size;
 
+}IP_Frame;
 typedef struct WiFi_Frame{
 	uint64_t timestamp;
 	unsigned short src_id;
@@ -67,13 +75,16 @@ typedef struct Enum_Type{
 	struct Enum_Type *next;
 }Enum_Type;
 
-unsigned char argument_flags = 0;
+unsigned short argument_flags = 0;
 char *in_filename_ptr, *out_filename_ptr;
 char *path;
 
 struct ZigBee_Frame Global_ZB_Pkt;
 struct Enum_Type Enum_Start;
 struct Enum_Type WiFi_Address;
+struct Enum_Type IP_Address;
+struct Enum_Type Proto_Address;
+
 unsigned int Enum_Index = 0;
 unsigned char live_descriptor_write = 1;
 unsigned int Version = 1;
@@ -88,8 +99,8 @@ unsigned char eapol_flag = 0;
 
 
 
-unsigned char extract_flag(char *arg){
-	unsigned char args = 0;
+unsigned short extract_flag(char *arg){
+	unsigned short args = 0;
 	if(strcmp(arg, "-l") == 0){
 		args |= LIVE_FLAG;
 	} else if (strcmp(arg, "-i") == 0){
@@ -104,6 +115,8 @@ unsigned char extract_flag(char *arg){
 		args |= WIFI_FLAG;
 	} else if (strcmp(arg, "-z") == 0){
 		args |= ZIGB_FLAG;
+	} else if (strcmp(arg, "-s") == 0){
+		args |= IP_SHOR_F;
 	} else {
 		if (argument_flags & PARAMETERF){
 			if ((in_filename_ptr == 0) && ((argument_flags & IN_F_FLAG) != 0)){
@@ -129,7 +142,7 @@ unsigned char extract_flag(char *arg){
 	return args;
 }
 
-unsigned char argument_flagger(int argc, char* argv[]){
+unsigned short argument_flagger(int argc, char* argv[]){
 	unsigned char i = 1;
 	if (argc > 1){
 		while(--argc){
@@ -153,6 +166,8 @@ unsigned char validate_flags(unsigned char args){
 	if ((argument_flags & ZIGB_FLAG)) if (!(argument_flags & AMODEFLAG) || !(argument_flags & WIFI_FLAG)) res = 1;
 	// If Wifi, then no auto or zigbee
 	if ((argument_flags & WIFI_FLAG)) if (!(argument_flags & ZIGB_FLAG) || !(argument_flags & AMODEFLAG)) res = 1;
+	// if IP Short, then no auto or zigbee or wifi
+	if ((argument_flags & IP_SHOR_F)) if (!(argument_flags & ZIGB_FLAG) || !(argument_flags & WIFI_FLAG) || !(argument_flags & AMODEFLAG)) res = 1;
 	return res;
 }
 
@@ -457,7 +472,20 @@ void ieee_man_frames_handler(char *after_length_ptr, ZigBee_Frame *zb_object){
 			// compensate ", "
 			t_ptr +=2;
 			//reusing all local variables
-			zb_object->flags |= manage_comparison(t_ptr, '\0', "Bad FCS");
+			if (!(zb_object->flags & 1))zb_object->flags |= manage_comparison(t_ptr, '\0', "Bad FCS");
+			// quickly find Bad FCS
+			if (zb_object->flags == 0){
+				// test special cases
+				while(*t_ptr++ != '\0'){
+					//look for B
+					if (*t_ptr == 'B'){
+						if (*(t_ptr+1) == 'a'){
+							// at this point it will be Ba(d FCS)
+							zb_object->flags = 1;
+						}
+					}
+				}
+			}
 			break;
 		}
 		if (*t_ptr == '\0'){
@@ -476,7 +504,7 @@ void zigb_man_frames_handler(char *after_length_ptr, ZigBee_Frame *zb_object){
 			// compensate ", "
 			t_ptr +=2;
 			//reusing all local variables
-			zb_object->flags |= manage_comparison(t_ptr, '\0', "Bad FCS");
+			if (!(zb_object->flags & 1))zb_object->flags |= manage_comparison(t_ptr, '\0', "Bad FCS");
 			break;
 		}
 		if (*t_ptr == '\0'){
@@ -527,6 +555,14 @@ unsigned int exctract_source_id(char *line, ZigBee_Frame *zb_object){
 				zb_object->dst_id = 0x0000;
 				if (bcast != 0) zb_object->dst_id = bcast;
 				zb_object->packet_size = ln;
+				// Ack Packet handler
+				if ((zb_object->packet_size == 19) && (manage_comparison(t_ptr, '\0', "Ack") == 1)){
+					zb_object->src_id = 0xFFFF;
+	                                zb_object->dst_id = 0xFFFF;
+				}
+				if ((zb_object->src_id == 0x0000) && (zb_object->dst_id == 0x0000)){
+					zb_object->flags = 1; // Reserved[Malformed Packet] case
+				}
 				ieee_man_frames_handler(t_ptr, zb_object);
 				free(len);
 				//extract the length
@@ -547,7 +583,11 @@ unsigned int exctract_source_id(char *line, ZigBee_Frame *zb_object){
 				t_ptr += diff_v;
 				zb_object->src_id = src;
 				zb_object->dst_id = dst;
+				if (bcast != 0) zb_object->dst_id = bcast;
 				zb_object->packet_size = ln;
+				if ((zb_object->src_id == 0x0000) && (zb_object->dst_id == 0x0000)){
+                                        zb_object->flags = 1; // Reserved[Malformed Packet] case
+                                }
 				zigb_man_frames_handler(t_ptr, zb_object);
 				free(len);
 			}
@@ -596,6 +636,9 @@ unsigned int exctract_source_id(char *line, ZigBee_Frame *zb_object){
 				zb_object->src_id = src;
 				zb_object->dst_id = dst;
 				zb_object->packet_size = ln;
+				if ((zb_object->src_id == 0x0000) && (zb_object->dst_id == 0x0000)){
+                                        zb_object->flags = 1; // Reserved[Malformed Packet] case
+                                }
 				ieee_man_frames_handler(t_ptr, zb_object);
 				free(len);
 				//extract the length
@@ -617,6 +660,9 @@ unsigned int exctract_source_id(char *line, ZigBee_Frame *zb_object){
 				zb_object->src_id = src;
 				zb_object->dst_id = dst;
 				zb_object->packet_size = ln;
+				if ((zb_object->src_id == 0x0000) && (zb_object->dst_id == 0x0000)){
+                                        zb_object->flags = 1; // Reserved[Malformed Packet] case
+                                }
 				zigb_man_frames_handler(t_ptr, zb_object);
 				//printf("ZigBee!!! Length: %d\n", (int)ln);
 				free(len);
@@ -845,8 +891,115 @@ void write_out_frames_new(void *Object, int num, char feedback_char, unsigned in
 		while(i < num){
                         free(frames[i++]);
                 }
+	} else if (((argument_flags & (OU_F_FLAG | IP_SHOR_F)) == (OU_F_FLAG | IP_SHOR_F))){
+		unsigned char obj_size = 8+1+1+2+2;
+		IP_Frame **frames = (IP_Frame**)Object;
+		FILE *out_file = open_file(out_filename_ptr, "r+b");
+		fseek(out_file, 0, SEEK_END);
+		while(i < num){
+			fwrite(&obj_size, sizeof(char), 1, out_file);
+			if(frames[i]->timestamp == 0) break;
+			fwrite(&frames[i]->timestamp, sizeof(char), 8, out_file);
+                        fwrite(&frames[i]->src_ip, sizeof(char), 2, out_file); // short, avoiding x64 clash
+                        fwrite(&frames[i]->dst_ip, sizeof(char), 2, out_file); // short, avoiding x64 clash
+                        fwrite(&frames[i]->protocol, sizeof(char), 1, out_file);
+			fwrite(&frames[i]->packet_size, sizeof(char), 1, out_file);
+			i++;
+		}
+		fseek(out_file, sizeof(int), SEEK_SET);
+                int write_processed = 0;
+                fread(&write_processed, sizeof(int), 1, out_file);
+                write_processed += i;
+                fseek(out_file, sizeof(int), SEEK_SET);
+                fwrite(&write_processed, sizeof(int), 1, out_file);
+                fclose(out_file);
+                i = 0;
+                while(i < num){
+                        free(frames[i++]);
+                }
 	}
 	free(Object);
+}
+char *return_me_not_char(char *ptr, char not_char){
+	if (*ptr == not_char){
+		while(*ptr++ != not_char);
+		return ptr--;
+	}
+	return ptr;
+}
+void process_ip_frame(char *line, IP_Frame *ip_frm){
+	// 31541 2017-11-24 15:17:40.826158 23.215.61.90 -> 192.168.1.3  HTTP 314
+	char *t_ptr = line;
+	// trim if starts from space
+	if (*t_ptr == ' ') while(*t_ptr++ == ' '); t_ptr--; // trim first space and return to the first char
+	while(*t_ptr++ != ' '); // skip the number, return value will be next space
+	while(*t_ptr++ != ' '); // skip the number
+	while(*t_ptr++ != ' '); // skip date
+	if (*t_ptr == ' '){
+		while(*t_ptr++ == ' ');
+		t_ptr--;
+	}
+
+	if ((*t_ptr == (char)0x86) || (*t_ptr == (char)0x3e)){
+		// no source found, capitulate!
+	} else {
+		char *src_ip = t_ptr;
+		char *dst_ip = t_ptr;
+		unsigned char i = 0;
+		// validate that it is an IP, this should be validated prior
+		while(*dst_ip++ != ' ')i++;
+		t_ptr = return_me_not_char(t_ptr, ' ');
+
+		char *source_ip = (char*)calloc(1, i+1);
+		char *destin_ip = 0x00;
+		memcpy(source_ip, src_ip, i);
+		t_ptr += i+1;
+		while(*t_ptr++ != ' '); // remove -> from text
+		t_ptr = return_me_not_char(t_ptr, ' ');
+		i = 0;
+		src_ip = t_ptr;
+		dst_ip = t_ptr;
+		while(*dst_ip++ != ' ') i++;
+		t_ptr = return_me_not_char(t_ptr, ' ');
+		destin_ip = (char*)calloc(1, i+1);
+		memcpy(destin_ip, src_ip, i);
+		ip_frm->src_ip = enum_find_frame_type(source_ip, &IP_Address);
+		ip_frm->dst_ip = enum_find_frame_type(destin_ip, &IP_Address);
+		if (ip_frm->src_ip == 0xFF){
+			ip_frm->src_ip = enum_add(source_ip, &IP_Address);
+		}
+		if (ip_frm->dst_ip == 0xFF){
+			ip_frm->dst_ip = enum_add(destin_ip, &IP_Address);
+		}
+		free(source_ip);
+		free(destin_ip);
+		t_ptr += i+1;
+		t_ptr = return_me_not_char(t_ptr, ' ');
+		// Proto extract
+		i = 0;
+		src_ip = t_ptr;
+		dst_ip = t_ptr;
+		while(*dst_ip++ != ' ') i++;
+		source_ip = (char*)calloc(1, i+1);
+		memcpy(source_ip, src_ip, i); // copied the proto
+		ip_frm->protocol = enum_find_frame_type(source_ip, &Proto_Address);
+		if (ip_frm->protocol =0xFF){	// shift towards short, 0xFF is 255 protos, easily achieved.
+			ip_frm->protocol = enum_add(source_ip, &Proto_Address);
+		}
+		free(source_ip);
+		t_ptr += i+1;
+		t_ptr = return_me_not_char(t_ptr, ' ');
+		// extract the length field and terminate
+		i = 0;
+		src_ip = t_ptr;
+		dst_ip = t_ptr;
+		while(*dst_ip++ != ' ') i++;
+		source_ip = (char*)calloc(1, i+1);
+		memcpy(source_ip, src_ip, i);
+		ip_frm->packet_size = atoi(source_ip);
+		free(source_ip);
+//		while(t_ptr++ != '\0');
+	}
 }
 void process_wifi_frame(char *line, WiFi_Frame *wifi_frm){
         // use int to store src and dst
@@ -1041,6 +1194,47 @@ WiFi_Frame **process_wifi_lines(char *ptr, unsigned long lines, unsigned int *fi
         free(t_upd);
         return wifi_arr;
 }
+unsigned char validate_ip_short(char *line){
+	unsigned char validate = 0;
+	while(*line++ != '\0'){
+		if (*line == '.') validate++;
+		if (validate == 6) return 1;
+	}
+	return 0;
+
+}
+
+IP_Frame **process_ip_frame_lines(char *ptr, unsigned long lines, unsigned int *filtered){
+	char *line = ptr;
+	char **t_upd = (char**)calloc(1, sizeof(t_upd));
+	IP_Frame **ip_arr = (IP_Frame**)calloc(lines, sizeof(ip_arr));
+	int ip_arr_i = 0;
+	unsigned int l_count = 0;
+	while(l_count < lines){
+		line = extract_line(line, t_upd);
+		if (!validate_ip_short(line)){
+			if (line == 0x00){
+				free(line);
+				l_count++;
+				line = t_upd[0];
+				break;
+			}
+			free(line); l_count++;
+			line = t_upd[0];
+			continue;
+		}
+		ip_arr[ip_arr_i] = (IP_Frame*)calloc(1, sizeof(IP_Frame));
+		ip_arr[ip_arr_i]->timestamp = convert_date_to_epoch(line);
+		process_ip_frame(line, ip_arr[ip_arr_i]);
+		free(line);
+		line = t_upd[0];
+		ip_arr_i++;
+		l_count++;
+	}
+	*filtered = --ip_arr_i;
+        free(t_upd);
+        return ip_arr;
+}
 ZigBee_Frame **process_zigbee_lines(char *ptr, unsigned long lines, unsigned int *filtered){
 	char *line = ptr;
 	char **t_upd = (char**)calloc(1, sizeof(t_upd));
@@ -1077,7 +1271,13 @@ ZigBee_Frame **process_zigbee_lines(char *ptr, unsigned long lines, unsigned int
 	free(t_upd);
 	return zb_arr;
 }
-
+void process_ip_short_input_live(unsigned char live_mode, char *line_buffer){
+	unsigned int line_count = 0;
+	unsigned int filtered = 0;
+	IP_Frame **ip_arr_ptr = process_ip_frame_lines(line_buffer, 1, &filtered);
+	if (filtered != 0xFFFFFFFF) write_out_frames_new((void*)ip_arr_ptr, 1, '\0', line_count);
+	if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){write_descriptor(&Enum_Start, "descriptor.csv"); write_descriptor(&IP_Address, "ip_addr_descriptor.csv"); write_descriptor(&Proto_Address, "ip_proto_descriptor.csv"); live_descriptor_write = 0;}
+}
 void process_zigbee_file_input_live(unsigned char live_mode, char *line_buffer){
 	unsigned int line_count = 0;
 	unsigned int filtered = 0;
@@ -1158,12 +1358,13 @@ char *extract_n_lines(FILE *file, long n_lines, long *offset){
 }
 */
 void showHelpMessage(){
-	printf("Usage: C_Parser -[io] (filename) -[lwzh] \n");
+	printf("Usage: C_Parser -[io] (filename) -[lwzhs] \n");
 	printf(" -i\tInput file parameter followed by the filename \n");
 	printf(" -o\tOutput file parameter followed by the filename \n");
 	printf(" -l\tLive mode (pipe with tshark output)\n");
 	printf(" -z\tZigBee input\n");
 	printf(" -w\tWifi input\n");
+	printf(" -s\tIP Short input\n");
 	printf(" -h\tThis help menu\n");
 }
 
@@ -1204,7 +1405,9 @@ int main(int argc, char *argv[])
 	path = extract_path(argv[0]);
 	enum_init(&Enum_Start);
 	enum_init(&WiFi_Address);
-	unsigned char parameter_flags = argument_flagger(argc, argv);
+	enum_init(&IP_Address);
+	enum_init(&Proto_Address);
+	unsigned short parameter_flags = argument_flagger(argc, argv);
 	if (((parameter_flags & HELP_FLAG) != 0)){ showHelpMessage(); return 0; }
 	if (((parameter_flags & ZIGB_FLAG) != 0) &&	//
 		((parameter_flags & IN_F_FLAG) != 0) && 
@@ -1240,6 +1443,8 @@ int main(int argc, char *argv[])
 
 					} else if (((parameter_flags & WIFI_FLAG) == WIFI_FLAG)){
 						process_wifi_file_input_live(LIVE_FLAG, line_buffer);
+					} else if (((parameter_flags & IP_SHOR_F) == IP_SHOR_F)){
+						process_ip_short_input_live(LIVE_FLAG, line_buffer);
 					}
 					line_count++;
 				}
