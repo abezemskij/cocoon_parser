@@ -43,8 +43,8 @@ typedef struct ZigBee_Frame{
 }ZigBee_Frame;
 typedef struct IP_Frame{
 	uint64_t timestamp;
-	unsigned char src_ip;
-	unsigned char dst_ip; // Potentially can be switched to short, analysis is required.
+	unsigned short src_ip;
+	unsigned short dst_ip; // Potentially can be switched to short, analysis is required.
 	unsigned short protocol;
 	unsigned short packet_size;
 
@@ -70,7 +70,7 @@ typedef struct Timestamp{
 }Timestamp;
 
 typedef struct Enum_Type{
-	unsigned char frame_type;
+	unsigned short frame_type;
 	char *name;
 	struct Enum_Type *next;
 }Enum_Type;
@@ -196,13 +196,13 @@ char *extract_path(char *arg){
 }
 
 void enum_init(Enum_Type *Enum){
-	Enum->frame_type = 0;
+	Enum->frame_type = 0x0000;
 	Enum->name = 0x00;
 	Enum->next = 0x00;
 }
 unsigned char enum_add(char *name, Enum_Type *Enum){
 	unsigned int i = 0;
-	unsigned char frame_type_id = 0;
+	unsigned short frame_type_id = 0;
 	if(Enum->frame_type == 0){
 		// first
 		char *ptr = name;
@@ -233,7 +233,7 @@ unsigned char enum_add(char *name, Enum_Type *Enum){
 
 unsigned char enum_find_frame_type(char *name, Enum_Type *Enum){
 	Enum_Type *pkt_ptr = Enum;
-	unsigned char res = -1;
+	unsigned short res = -1;
 	unsigned char length = 0;
 	char *ptr = name;
 	while(*ptr++ != '\0') length++;
@@ -828,13 +828,13 @@ void write_out_frames_new(void *Object, int num, char feedback_char, unsigned in
 		//int *arr_addr = (int*)Object;
 		//int *addr = (int*)*arr_addr;
 		//unsigned int *addr = (int*)*arr_addr;
-		int frame_size = sizeof(ZigBee_Frame);
+		char frame_size = sizeof(ZigBee_Frame);
 		FILE *out_file = open_file(out_filename_ptr, "r+b");
 		fseek(out_file, 0, SEEK_END);
 		while(i < num){
 			//ZigBee_Frame *frame_ptr = (ZigBee_Frame*)*frames;
 			if( frames[i]->timestamp == 0) break;
-			fwrite(&frame_size, sizeof(int), 1, out_file);
+			fwrite(&frame_size, sizeof(char), 1, out_file);
 			fwrite(frames[i++], sizeof(ZigBee_Frame)-1,1, out_file); // -1 because of structure padding
 		}
 		fseek(out_file, sizeof(int), SEEK_SET);
@@ -892,7 +892,7 @@ void write_out_frames_new(void *Object, int num, char feedback_char, unsigned in
                         free(frames[i++]);
                 }
 	} else if (((argument_flags & (OU_F_FLAG | IP_SHOR_F)) == (OU_F_FLAG | IP_SHOR_F))){
-		unsigned char obj_size = 8+1+1+2+2;
+		unsigned char obj_size = sizeof(IP_Frame);
 		IP_Frame **frames = (IP_Frame**)Object;
 		FILE *out_file = open_file(out_filename_ptr, "r+b");
 		fseek(out_file, 0, SEEK_END);
@@ -900,10 +900,10 @@ void write_out_frames_new(void *Object, int num, char feedback_char, unsigned in
 			fwrite(&obj_size, sizeof(char), 1, out_file);
 			if(frames[i]->timestamp == 0) break;
 			fwrite(&frames[i]->timestamp, sizeof(char), 8, out_file);
-                        fwrite(&frames[i]->src_ip, sizeof(char), 2, out_file); // short, avoiding x64 clash
-                        fwrite(&frames[i]->dst_ip, sizeof(char), 2, out_file); // short, avoiding x64 clash
-                        fwrite(&frames[i]->protocol, sizeof(char), 1, out_file);
-			fwrite(&frames[i]->packet_size, sizeof(char), 1, out_file);
+                        fwrite(&frames[i]->src_ip, sizeof(short), 1, out_file); // short, avoiding x64 clash
+                        fwrite(&frames[i]->dst_ip, sizeof(short), 1, out_file); // short, avoiding x64 clash
+                        fwrite(&frames[i]->protocol, sizeof(short), 1, out_file);
+			fwrite(&frames[i]->packet_size, sizeof(short), 1, out_file);
 			i++;
 		}
 		fseek(out_file, sizeof(int), SEEK_SET);
@@ -922,8 +922,8 @@ void write_out_frames_new(void *Object, int num, char feedback_char, unsigned in
 }
 char *return_me_not_char(char *ptr, char not_char){
 	if (*ptr == not_char){
-		while(*ptr++ != not_char);
-		return ptr--;
+		while(*ptr++ == not_char);
+		return (ptr-1);
 	}
 	return ptr;
 }
@@ -976,6 +976,7 @@ void process_ip_frame(char *line, IP_Frame *ip_frm){
 		t_ptr += i+1;
 		t_ptr = return_me_not_char(t_ptr, ' ');
 		// Proto extract
+//		if (*t_ptr == ' ') t_ptr = return_me_not_char(t_ptr, ' ');
 		i = 0;
 		src_ip = t_ptr;
 		dst_ip = t_ptr;
@@ -983,7 +984,7 @@ void process_ip_frame(char *line, IP_Frame *ip_frm){
 		source_ip = (char*)calloc(1, i+1);
 		memcpy(source_ip, src_ip, i); // copied the proto
 		ip_frm->protocol = enum_find_frame_type(source_ip, &Proto_Address);
-		if (ip_frm->protocol =0xFF){	// shift towards short, 0xFF is 255 protos, easily achieved.
+		if (ip_frm->protocol == 0xFF){	// shift towards short, 0xFF is 255 protos, easily achieved.
 			ip_frm->protocol = enum_add(source_ip, &Proto_Address);
 		}
 		free(source_ip);
@@ -1198,7 +1199,25 @@ unsigned char validate_ip_short(char *line){
 	unsigned char validate = 0;
 	while(*line++ != '\0'){
 		if (*line == '.') validate++;
-		if (validate == 6) return 1;
+		if (validate == 7) return 1;
+		// if arp break
+		if (*line == 'A'){
+			if(*(line+1) == 'R'){
+				if (*(line+2) == 'P'){
+					return 0;
+				}
+			}
+		}
+		// if MDNS the case of IPv6
+		if (*line == 'M'){
+                        if(*(line+1) == 'D'){
+                                if (*(line+2) == 'N'){
+                                        if (*(line+3) == 'S'){
+						return 0;
+					}
+                                }
+                        }
+                }
 	}
 	return 0;
 
@@ -1276,7 +1295,7 @@ void process_ip_short_input_live(unsigned char live_mode, char *line_buffer){
 	unsigned int filtered = 0;
 	IP_Frame **ip_arr_ptr = process_ip_frame_lines(line_buffer, 1, &filtered);
 	if (filtered != 0xFFFFFFFF) write_out_frames_new((void*)ip_arr_ptr, 1, '\0', line_count);
-	if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){write_descriptor(&Enum_Start, "descriptor.csv"); write_descriptor(&IP_Address, "ip_addr_descriptor.csv"); write_descriptor(&Proto_Address, "ip_proto_descriptor.csv"); live_descriptor_write = 0;}
+	if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){write_descriptor(&IP_Address, "ip_addr_descriptor.csv"); write_descriptor(&Proto_Address, "ip_proto_descriptor.csv"); live_descriptor_write = 0;}
 }
 void process_zigbee_file_input_live(unsigned char live_mode, char *line_buffer){
 	unsigned int line_count = 0;
