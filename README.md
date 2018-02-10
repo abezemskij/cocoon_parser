@@ -4,7 +4,7 @@ Utility used for parsing tshark output. <br>
 
 Dependencies:<br><br>
 
-> gcc <br><br>
+> g++ <br><br>
 
 Compilation:<br><br>
 
@@ -13,13 +13,13 @@ Compilation:<br><br>
 
 Usage:<br><br>
 
-> ./parser -**i** [file] -**o** [file] -**[wz]**	(.csv file parsing) <br>
-> ./parser -**l** -**o** [file] -**[wz]**		(live mode parsing, needs to be piped)<br><br>
+> ./parser -**i** [file] -**o** [file] -**[wzs]**	(.csv file parsing) <br>
+> ./parser -**l** -**o** [file] -**[wzs]**		(live mode parsing, needs to be piped)<br><br>
 
 Help:<br><br>
 
 > **-l** - Live mode<br>
 > **-io** - Input/Output<br>
-> **-wz** - WiFi/ZigBee<br>
+> **-wzs** - WiFi/ZigBee/IP Short Header<br>
 > **[file]** - Any existing/non-existing filename <br>
 
