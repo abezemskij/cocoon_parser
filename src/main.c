@@ -19,8 +19,9 @@
 #define HELP_FLAG  1<<6 // Help	
 #define PARAMETERF 1<<7 // Parameter for input/output is parsed next
 #define IP_SHOR_F  1<<8 // IP Short version
+#define AUDIO_FLA  1<<9 // Audio flag in a format of <timestamp>,<value>
 #define WIN_MODE 1
-#define LINE_INIT  100000
+#define LINE_INIT  100000	// Lines initialized
 
 using namespace std;
 
@@ -49,6 +50,11 @@ typedef struct IP_Frame{
 	unsigned short packet_size;
 
 }IP_Frame;
+typedef struct Audio_Frame{
+	uint64_t timestamp;
+	double db;
+}Audio_Frame;
+
 typedef struct WiFi_Frame{
 	uint64_t timestamp;
 	unsigned short src_id;
@@ -117,6 +123,8 @@ unsigned short extract_flag(char *arg){
 		args |= ZIGB_FLAG;
 	} else if (strcmp(arg, "-s") == 0){
 		args |= IP_SHOR_F;
+	} else if (strcmp(arg, "-a") == 0){
+		args |= AUDIO_FLA;
 	} else {
 		if (argument_flags & PARAMETERF){
 			if ((in_filename_ptr == 0) && ((argument_flags & IN_F_FLAG) != 0)){
@@ -828,7 +836,7 @@ void write_out_frames_new(void *Object, int num, char feedback_char, unsigned in
 		//int *arr_addr = (int*)Object;
 		//int *addr = (int*)*arr_addr;
 		//unsigned int *addr = (int*)*arr_addr;
-		char frame_size = sizeof(ZigBee_Frame);
+		char frame_size = sizeof(ZigBee_Frame)-1; // -1 because of structure padding
 		FILE *out_file = open_file(out_filename_ptr, "r+b");
 		fseek(out_file, 0, SEEK_END);
 		while(i < num){
@@ -917,6 +925,29 @@ void write_out_frames_new(void *Object, int num, char feedback_char, unsigned in
                 while(i < num){
                         free(frames[i++]);
                 }
+	} else if (((argument_flags &(OU_F_FLAG | AUDIO_FLA)) == (OU_F_FLAG | AUDIO_FLA))){
+		unsigned char obj_size = sizeof(Audio_Frame);
+                Audio_Frame **frames = (Audio_Frame**)Object;
+                FILE *out_file = open_file(out_filename_ptr, "r+b");
+                fseek(out_file, 0, SEEK_END);
+                while(i < num){
+                        fwrite(&obj_size, sizeof(char), 1, out_file);
+                        if(frames[i]->timestamp == 0) break;
+                        fwrite(&frames[i]->timestamp, sizeof(char), 8, out_file);
+			fwrite(&frames[i]->db, sizeof(double), 1, out_file);
+                        i++;
+                }
+                fseek(out_file, sizeof(int), SEEK_SET);
+                int write_processed = 0;
+                fread(&write_processed, sizeof(int), 1, out_file);
+                write_processed += i;
+                fseek(out_file, sizeof(int), SEEK_SET);
+                fwrite(&write_processed, sizeof(int), 1, out_file);
+                fclose(out_file);
+                i = 0;
+                while(i < num){
+                        free(frames[i++]);
+                }
 	}
 	free(Object);
 }
@@ -931,7 +962,7 @@ void process_ip_frame(char *line, IP_Frame *ip_frm){
 	// 31541 2017-11-24 15:17:40.826158 23.215.61.90 -> 192.168.1.3  HTTP 314
 	char *t_ptr = line;
 	// trim if starts from space
-	if (*t_ptr == ' ') while(*t_ptr++ == ' '); t_ptr--; // trim first space and return to the first char
+	if (*t_ptr == ' '){ while(*t_ptr++ == ' '); t_ptr--;} // trim first space and return to the first char
 	while(*t_ptr++ != ' '); // skip the number, return value will be next space
 	while(*t_ptr++ != ' '); // skip the number
 	while(*t_ptr++ != ' '); // skip date
@@ -1290,12 +1321,74 @@ ZigBee_Frame **process_zigbee_lines(char *ptr, unsigned long lines, unsigned int
 	free(t_upd);
 	return zb_arr;
 }
+
+Audio_Frame **process_audio_frame_lines(char *ptr, unsigned long lines, unsigned int *filtered){
+	char *line = ptr;
+	char **t_upd = (char**)calloc(1, sizeof(t_upd));
+	Audio_Frame **audio_arr = (Audio_Frame**)calloc(lines, sizeof(audio_arr));
+	int audio_arr_i = 0;
+	unsigned int l_count = 0;
+	while(l_count < lines){
+		line = extract_line(line, t_upd);
+		// the format is csv 0.16003552981111932,2017-11-24,15:14:03
+		// value,date,time
+		audio_arr[audio_arr_i] = (Audio_Frame*)calloc(1, sizeof(Audio_Frame));
+		char *start = line;
+		char *t_ptr = 0;
+		char *tt_ptr= 0;
+		char *test=0;
+		int i = 0;
+		int z = 0;
+		while(*(start++) != ',')i++;
+		start = (char*)calloc((i+1), sizeof(char));
+		memcpy(start, line, i); // -1 removes the comma
+		audio_arr[audio_arr_i]->db = atof(start);
+		free(start);
+		start = line+i+1; i = 0; // +1 because currently pointing at ,
+		while(*(start++) != ',')i++;
+		t_ptr = (char*)calloc(i+1, sizeof(char));
+		memcpy(t_ptr, (start-(1+i)), i);
+		//start is currently at the last bit
+		tt_ptr = start;
+		i=0;
+		while(*(tt_ptr++) != ','){i++; if(*tt_ptr == '\r' || *tt_ptr == '\n')break; } // got the last bit
+		test=(char*)calloc(i+1, sizeof(char));
+		memcpy(test, start, i);
+		// now we have to merge them together
+		// t_ptr = date, z ?= date length
+		// test = time, i = time length
+		tt_ptr = t_ptr;
+		while(*tt_ptr++ != '\0') z++;
+		start = (char*)calloc(z+i+1+12, sizeof(char)); // Why 3? Why not I would say )) 
+		sprintf(start, "1 %s %s.000000  a",t_ptr, test);
+		audio_arr[audio_arr_i]->timestamp = convert_date_to_epoch(start);
+		memcpy(start, t_ptr, z);
+		memcpy(start+z, " ", 1); // add space
+		memcpy(start+z+1, test, i);
+		free(start);
+		free(test);
+		free(t_ptr);
+		audio_arr_i++;
+		l_count++;
+	}
+	*filtered = --audio_arr_i;
+	free(t_upd);
+	return audio_arr;
+}
+void process_audio_input_live(unsigned char live_mode, char *line_buffer){
+	unsigned int line_count = 0;
+	unsigned int filtered = 0;
+	Audio_Frame **audio_arr_ptr = process_audio_frame_lines(line_buffer, 1, &filtered);
+	if (filtered != 0xFFFFFFFF) write_out_frames_new((void*)audio_arr_ptr, 1, '\0', line_count);
+//	if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){write_descriptor(&IP_Address, "ip_addr_descriptor.csv"); write_descriptor(&Proto_Address, "ip_proto_descriptor.csv"); live_descriptor_write = 0;}
+}
 void process_ip_short_input_live(unsigned char live_mode, char *line_buffer){
 	unsigned int line_count = 0;
 	unsigned int filtered = 0;
 	IP_Frame **ip_arr_ptr = process_ip_frame_lines(line_buffer, 1, &filtered);
 	if (filtered != 0xFFFFFFFF) write_out_frames_new((void*)ip_arr_ptr, 1, '\0', line_count);
-	if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){write_descriptor(&IP_Address, "ip_addr_descriptor.csv"); write_descriptor(&Proto_Address, "ip_proto_descriptor.csv"); live_descriptor_write = 0;}
+	if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){
+write_descriptor(&IP_Address, "ip_addr_descriptor.csv"); write_descriptor(&Proto_Address, "ip_proto_descriptor.csv"); live_descriptor_write = 0;}
 }
 void process_zigbee_file_input_live(unsigned char live_mode, char *line_buffer){
 	unsigned int line_count = 0;
@@ -1377,13 +1470,14 @@ char *extract_n_lines(FILE *file, long n_lines, long *offset){
 }
 */
 void showHelpMessage(){
-	printf("Usage: C_Parser -[io] (filename) -[lwzhs] \n");
+	printf("Usage: C_Parser -[io] (filename) -[lwzhsa] \n");
 	printf(" -i\tInput file parameter followed by the filename \n");
 	printf(" -o\tOutput file parameter followed by the filename \n");
 	printf(" -l\tLive mode (pipe with tshark output)\n");
 	printf(" -z\tZigBee input\n");
 	printf(" -w\tWifi input\n");
 	printf(" -s\tIP Short input\n");
+	printf(" -a\tAudio Input\n");
 	printf(" -h\tThis help menu\n");
 }
 
@@ -1464,6 +1558,8 @@ int main(int argc, char *argv[])
 						process_wifi_file_input_live(LIVE_FLAG, line_buffer);
 					} else if (((parameter_flags & IP_SHOR_F) == IP_SHOR_F)){
 						process_ip_short_input_live(LIVE_FLAG, line_buffer);
+					} else if (((parameter_flags & AUDIO_FLA) == AUDIO_FLA)){
+						process_audio_input_live(LIVE_FLAG, line_buffer);
 					}
 					line_count++;
 				}
