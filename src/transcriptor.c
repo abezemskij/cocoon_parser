@@ -4,6 +4,8 @@
 #include <string.h>
 #include "structures.h"
 
+#define INTERVAL 1000000 // second
+
 typedef struct FRAME{
 	unsigned int frame_len;
 	char *frame_ptr;
@@ -15,6 +17,9 @@ typedef struct SLOT{
 	FRAME *frame_array;
 	uint64_t slot_stop_time;
 }SLOT;
+
+uint64_t global_start_time = 0;
+int     slot_parsed_counter = 0;
 
 unsigned char filter_address(void *object, unsigned char type, unsigned short exclude_addr){
 	switch(type){
@@ -51,6 +56,7 @@ void free_slot(SLOT *slot){
 	FRAME *frame_ptr;
 	FRAME *min_one;
 	frame_ptr = slot->frame_array;
+	min_one = slot->frame_array;
 	while(slot->n--){
 		while(frame_ptr->next != 0){min_one = frame_ptr; frame_ptr = frame_ptr->next;}
 		free(frame_ptr->frame_ptr);
@@ -58,11 +64,14 @@ void free_slot(SLOT *slot){
 		min_one->next = 0;
 		frame_ptr = slot->frame_array;
 		printf(".");
+		fflush(stdout);
 	}
 	slot->n = 0;
+	slot->frame_array = 0;
 }
-void frame_add(SLOT *slot, void *object, unsigned char type){
+void frame_add(SLOT *slot, void *object, unsigned char object_size, unsigned char type){
 	// type 0 = wifi, 1 = zigbee, 2 = ip, 3 = sound
+	FRAME *_frame = (FRAME*)0x0000;
 	switch(type){
 		case 0:
 			//wifi
@@ -70,6 +79,24 @@ void frame_add(SLOT *slot, void *object, unsigned char type){
 			break;
 		case 1:
 			//zigbee
+			if (slot->frame_array != 0){
+				_frame = slot->frame_array;
+				while(_frame->next != 0) _frame = _frame->next;
+				_frame->next = (FRAME *)calloc(1, sizeof(FRAME));
+				_frame->next->frame_len = object_size;// zigbee frame length
+				_frame->next->frame_ptr = (char*)calloc(1, _frame->next->frame_len);
+				memcpy(_frame->next->frame_ptr, object, _frame->next->frame_len);
+				slot->n++;
+			} else {
+                                _frame = (FRAME *)calloc(1, sizeof(FRAME));
+                                _frame->frame_len = object_size;// zigbee frame length
+                                _frame->frame_ptr = (char*)calloc(1, _frame->frame_len);
+                                memcpy(_frame->frame_ptr, object, _frame->frame_len);
+				slot->frame_array = _frame;
+                                slot->n++;
+//				printf("\n%d\n", ((ZigBee_Frame*)object)->packet_size);
+			}
+
 			break;
 		case 2:
 			//ip
@@ -81,6 +108,10 @@ void frame_add(SLOT *slot, void *object, unsigned char type){
 			break;
 	}
 }
+void update_stop_start_times(SLOT *slot){
+	slot->slot_start_time = global_start_time + (INTERVAL*slot_parsed_counter++);
+        slot->slot_stop_time = slot->slot_start_time+INTERVAL;
+}
 int main(int argc, char **argv){ int mode = 1;
 	FILE *file = fopen(argv[1], "rb");
 	if (argc > 2){
@@ -88,11 +119,14 @@ int main(int argc, char **argv){ int mode = 1;
 	}
 	int version = 0;
 	int pkt_number = 0;
+	unsigned char slot_index;
 	fseek(file, 0, SEEK_SET);
 	fread(&version, sizeof(int), 1, file);
 	fread(&pkt_number,sizeof(int), 1,file);
-	printf("Version: %d Packets: %d\n", version, pkt_number);
-	SLOT *slot = slot_init();
+//	printf("Version: %d Packets: %d\n", version, pkt_number);
+	SLOT *slot[2];
+	slot[0] = slot_init();
+	slot[1] = slot_init();
 	while(pkt_number--){
 		int t_len = 0;
 		if (mode == 0){	// Wifi
@@ -106,30 +140,45 @@ int main(int argc, char **argv){ int mode = 1;
 			ZigBee_Frame t_zb_frm;
         	        fread(&t_len, sizeof(char), 1, file);
         	        fread(&t_zb_frm, t_len, 1, file);
-			if (slot->n == 0){
-				slot->slot_start_time = t_zb_frm.timestamp;
-				slot->slot_stop_time = t_zb_frm.timestamp+1000000;
-				slot->frame_array = (FRAME*)calloc(1, sizeof(FRAME));
-				slot->frame_array->frame_len = t_len;
-				slot->frame_array->frame_ptr = (char*)calloc(1, t_len);
-				memcpy(slot->frame_array->frame_ptr, &t_zb_frm, t_len);
-				slot->n++;
+			if (slot[slot_index]->n == 0){
+				if (global_start_time == 0) global_start_time = t_zb_frm.timestamp;
+				update_stop_start_times(slot[slot_index]);
+				//slot->frame_array = (FRAME*)calloc(1, sizeof(FRAME));
+				//slot->frame_array->frame_len = t_len;
+				//slot->frame_array->frame_ptr = (char*)calloc(1, t_len);
+				//memcpy(slot->frame_array->frame_ptr, &t_zb_frm, t_len);
+				//slot->n++;
+				frame_add(slot[slot_index], &t_zb_frm, t_len, 1);
 				continue;
 			} else {
-				if (t_zb_frm.timestamp < slot->slot_stop_time){
-					FRAME *frame = (FRAME*)calloc(1, sizeof(FRAME));
-					FRAME *t_frame = slot->frame_array;
-					while(t_frame->next != 0) t_frame = t_frame->next;
+				if ((t_zb_frm.timestamp >= slot[slot_index]->slot_start_time)&&(t_zb_frm.timestamp <= slot[slot_index]->slot_stop_time)){
+				//	FRAME *frame = (FRAME*)calloc(1, sizeof(FRAME));
+			//		FRAME *t_frame = slot->frame_array;
+			//		while(t_frame->next != 0) t_frame = t_frame->next;
 					// I have the last frame
-					t_frame->next = frame;
-					frame->frame_len = t_len;
-					frame->frame_ptr = (char*)calloc(1, t_len);
-					memcpy(frame->frame_ptr, &t_zb_frm, t_len);
-					slot->n++;
+			//		t_frame->next = frame;
+			//		frame->frame_len = t_len;
+			//		frame->frame_ptr = (char*)calloc(1, t_len);
+			//		memcpy(frame->frame_ptr, &t_zb_frm, t_len);
+			//		slot->n++;
+					
+					frame_add(slot[slot_index], &t_zb_frm, t_len, 1);
 				} else { // the timestamp is higher
 					// do stat analysis
-					printf("got a slot, pkt: %d", slot->n);
-					free_slot(slot);
+					printf("\ngot a slot, pkt: %d", slot[slot_index]->n);
+					if (slot_index == 0){
+						 slot_index++;
+					} else if (slot_index == 1){
+						slot_index++;
+					}
+						// output
+					if (slot_index == 2){
+						free_slot(slot[0]);
+						free_slot(slot[1]);
+						slot_index = 0;
+					}
+
+//					free_slot(slot);
 	//				return 0;
 					// free slot
 
