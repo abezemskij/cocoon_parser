@@ -84,6 +84,7 @@ typedef struct Enum_Type{
 unsigned short argument_flags = 0;
 char *in_filename_ptr, *out_filename_ptr;
 char *path;
+char *descriptor_filename_start;
 
 struct ZigBee_Frame Global_ZB_Pkt;
 struct Enum_Type Enum_Start;
@@ -722,8 +723,14 @@ void write_descriptor(Enum_Type *Enum, const char *file){
 	char filename[64] = { 0 };
 	int i = 0;
 	while(*(file+i) != '\0')i++;
+	int j = 0;
+	while(*(out_filename_ptr+j) != '\0')j++;
+	char *final = (char*)calloc(1, sizeof(char)*(i+j+2));
+	memcpy(final, out_filename_ptr, j-4);
+	memcpy((final+j-4), "_", 1);
+	memcpy((final+j+1-4), file, i); 
 	memcpy(filename, file, i);
-	FILE *desc_file = open_file(filename, "w+");
+	FILE *desc_file = open_file(final, "w+");
 	Enum_Type *ptr = Enum;
 	// loop through all Enums
 	char buf[128];
@@ -737,6 +744,7 @@ void write_descriptor(Enum_Type *Enum, const char *file){
 		ptr = ptr->next;
 		str_len = 0;
 	}
+	free(final);
 	fclose(desc_file);
 }
 /*
@@ -1388,21 +1396,21 @@ void process_ip_short_input_live(unsigned char live_mode, char *line_buffer){
 	IP_Frame **ip_arr_ptr = process_ip_frame_lines(line_buffer, 1, &filtered);
 	if (filtered != 0xFFFFFFFF) write_out_frames_new((void*)ip_arr_ptr, 1, '\0', line_count);
 	if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){
-write_descriptor(&IP_Address, "ip_addr_descriptor.csv"); write_descriptor(&Proto_Address, "ip_proto_descriptor.csv"); live_descriptor_write = 0;}
+	write_descriptor(&IP_Address, "addresses.csv"); write_descriptor(&Proto_Address, "protocols.csv"); live_descriptor_write = 0;}
 }
 void process_zigbee_file_input_live(unsigned char live_mode, char *line_buffer){
 	unsigned int line_count = 0;
 	unsigned int filtered = 0;
 	ZigBee_Frame **zb_arr_ptr = process_zigbee_lines(line_buffer, 1, &filtered);
 	if (filtered != 0xFFFFFFFF) write_out_frames_new((void*)zb_arr_ptr, 1,'\0', line_count);
-	if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){write_descriptor(&Enum_Start, "descriptor.csv"); live_descriptor_write = 0;}
+	if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){write_descriptor(&Enum_Start, "protocols.csv"); live_descriptor_write = 0;}
 }
 void process_wifi_file_input_live(unsigned char live_mode, char *line_buffer){
 	unsigned int line_count = 0;
 	unsigned int filtered = 0;
 	WiFi_Frame **wifi_arr_ptr= process_wifi_lines(line_buffer, 1, &filtered);
 	if (filtered != 0xFFFFFFFF) write_out_frames_new((void*)wifi_arr_ptr, 1,'\0', line_count);
-        if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){write_descriptor(&Enum_Start, "descriptor.csv"); write_descriptor(&WiFi_Address, "wifi_addr_descriptor.csv"); live_descriptor_write = 0;}
+        if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){write_descriptor(&Enum_Start, "protocols.csv"); write_descriptor(&WiFi_Address, "addresses.csv"); live_descriptor_write = 0;}
 }
 void process_zigbee_file_input(FILE *file, unsigned long number_of_lines){
 	char *ptr = 0;
@@ -1429,7 +1437,7 @@ void process_zigbee_file_input(FILE *file, unsigned long number_of_lines){
 		free(ptr);
 		overall_filtered += filtered;
 		if ((next_read+slot) > number_of_lines){ slot = number_of_lines-next_read; }
-		if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){write_descriptor(&Enum_Start, "descriptor.csv"); live_descriptor_write = 0;}
+		if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){write_descriptor(&Enum_Start, "protocols.csv"); live_descriptor_write = 0;}
 	}
 }
 /*
@@ -1508,7 +1516,7 @@ void process_wifi_file_input(FILE *file, unsigned long number_of_lines){
                 free(ptr);
                 overall_filtered += filtered;
                 if ((next_read+slot) > number_of_lines){ slot = number_of_lines-next_read; }
-                if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){write_descriptor(&Enum_Start, "descriptor.csv"); write_descriptor(&WiFi_Address, "wifi_addr_descriptor.csv"); live_descriptor_write = 0;}
+                if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){write_descriptor(&Enum_Start, "protocols.csv"); write_descriptor(&WiFi_Address, "addresses.csv"); live_descriptor_write = 0;}
         }
 }
 
@@ -1535,6 +1543,7 @@ int main(int argc, char *argv[])
 				fseek(in_file, 0, SEEK_SET);
 				//char *test = extract_n_lines(in_file, line_p_session, 0);
 				process_zigbee_file_input(in_file, lines);
+				//process_zigbee_file_input_live(LIVE_FLAG, line_buffer);
 				printf("Was able to open file!\nAllocs: %lu Freed: %lu\n", mlk_alloc, mlk_free);
 				fclose(in_file);
 			}
