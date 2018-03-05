@@ -390,6 +390,7 @@ uint64_t get_number_of_lines(FILE *file){
 }
 
 uint64_t convert_date_to_epoch(char* line){ // requires trimmed version
+	char *debug_line = line;
 	uint64_t  ret_res = 0;
 	char* year = (char*)calloc(5, sizeof(char)); // format 2017 +1 for 0x00
 	char* month = (char*)calloc(3, sizeof(char)); // format 12 +1 for 0x00
@@ -840,6 +841,7 @@ void write_out_frames_new(void *Object, int num, char feedback_char, unsigned in
 	int i = 0;
 	if (((argument_flags & (OU_F_FLAG | ZIGB_FLAG)) == (OU_F_FLAG | ZIGB_FLAG))){
 		ZigBee_Frame **frames = (ZigBee_Frame**)Object;
+		if (Object == 0x00){ free(Object); return;}
 		//ZigBee_Frame *frames = (ZigBee_Frame*)Object;
 		//int *arr_addr = (int*)Object;
 		//int *addr = (int*)*arr_addr;
@@ -1261,9 +1263,15 @@ unsigned char validate_ip_short(char *line){
 	return 0;
 
 }
-
+unsigned int line_counte = 0;
+unsigned int invalid = 0;
+unsigned int _invalid= 0;
+char *global_deb_string;
+//        1
+// 10000000
 IP_Frame **process_ip_frame_lines(char *ptr, unsigned long lines, unsigned int *filtered){
 	char *line = ptr;
+	global_deb_string = ptr;
 	char **t_upd = (char**)calloc(1, sizeof(t_upd));
 	IP_Frame **ip_arr = (IP_Frame**)calloc(lines, sizeof(ip_arr));
 	int ip_arr_i = 0;
@@ -1274,13 +1282,15 @@ IP_Frame **process_ip_frame_lines(char *ptr, unsigned long lines, unsigned int *
 			if (line == 0x00){
 				free(line);
 				l_count++;
-				line = t_upd[0];
+				line = t_upd[0]; invalid++;
 				break;
 			}
+			_invalid++;
 			free(line); l_count++;
 			line = t_upd[0];
 			continue;
 		}
+		line_counte++;
 		ip_arr[ip_arr_i] = (IP_Frame*)calloc(1, sizeof(IP_Frame));
 		ip_arr[ip_arr_i]->timestamp = convert_date_to_epoch(line);
 		process_ip_frame(line, ip_arr[ip_arr_i]);

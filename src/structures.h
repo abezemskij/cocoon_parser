@@ -11,8 +11,8 @@ typedef struct ZigBee_Frame{
 }ZigBee_Frame;
 typedef struct IP_Frame{
         uint64_t timestamp;
-        unsigned short src_ip;
-        unsigned short dst_ip; // Potentially can be switched to short, analysis is required.
+        unsigned short src_id;
+        unsigned short dst_id; // Potentially can be switched to short, analysis is required.
         unsigned short protocol;
         unsigned short packet_size;
 

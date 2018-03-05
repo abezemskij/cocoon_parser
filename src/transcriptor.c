@@ -6,7 +6,7 @@
 #include <limits.h>
 #include "structures.h"
 
-#define INTERVAL 5000000//1000000 // second
+#define INTERVAL 1000000//1000000 // second
 
 typedef struct FRAME{
 	unsigned int frame_len;
@@ -40,8 +40,8 @@ unsigned char filter_address(void *object, unsigned char type, unsigned short ex
 			break;
 		case 2:
 			//IP_Frame *obj = (IP_Frame*)object;
-			if (((IP_Frame*)object)->src_ip == exclude_addr) return 0;
-			if (((IP_Frame*)object)->dst_ip == exclude_addr) return 0;
+			if (((IP_Frame*)object)->src_id == exclude_addr) return 0;
+			if (((IP_Frame*)object)->dst_id == exclude_addr) return 0;
 			// parse IP_Short
 			break;
 		case 3:
@@ -318,6 +318,18 @@ void _math_minmax(unsigned int *array, unsigned int n, unsigned int *min, unsign
 	*max = _max;
 
 }
+void _math_minmax_dbl(double *array, unsigned int n, double *min, double *max){
+	double _min = 9999999999.0;
+	double _max = 0;
+	unsigned int i = 0;
+	while (i < n){
+                if (_min > array[i]) _min = array[i];
+                if (_max < array[i]) _max = array[i];
+                i++;
+        }
+        *min = _min;
+        *max = _max;
+}
 double _math_average(unsigned int *array, unsigned int n){
 	double result = 0.0;
 	unsigned int i = 0;
@@ -327,6 +339,16 @@ double _math_average(unsigned int *array, unsigned int n){
 	}
 	result = result/n;
 	return result;
+}
+double _math_average_dbl(double *array, unsigned int n){
+        double result = 0.0;
+        unsigned int i = 0;
+        while(i < n){
+                result += array[i];
+                i++;
+        }
+        result = result/n;
+        return result;
 }
 double _math_variance(unsigned int *array, double average, unsigned int n){
 	double result = 0.0;
@@ -338,11 +360,23 @@ double _math_variance(unsigned int *array, double average, unsigned int n){
 	result = result/(n-1);
 	return result;
 }
+double _math_variance_dbl(double *array, double average, unsigned int n){
+        double result = 0.0;
+        unsigned i = 0;
+        while(i < n){
+                result += pow(((double)array[i]-average), 2); 
+                i++;
+        }
+        result = result/(n-1);
+        return result;
+}
+
 double _math_stdev(double variance){
 	double result;
 	result = sqrt(variance);
 	return result;
 }
+
 double _math_avg_dev(unsigned int *array, unsigned int n){
 	double result;
 	unsigned int i = 1;
@@ -352,6 +386,50 @@ double _math_avg_dev(unsigned int *array, unsigned int n){
 	}
 	result = result/(n-1);
 	return result;
+}
+double _math_avg_dev_dbl(double *array, unsigned int n){
+        double result;
+        unsigned int i = 1;
+        while(i < n){
+                result = fabs((double)array[i]-(double)array[i-1]);
+                i++;
+        }
+        result = result/(n-1);
+        return result;
+}
+void process_audio(SLOT *slot){
+        unsigned int i = 0;
+        unsigned int k = 0;
+        unsigned int j = 0;
+        double avg = 0.0;
+        double stdev = 0.0;
+        double avg_dev = 0.0;
+        FRAME *_frame = slot->frame_array;
+	double *val_array = (double*)calloc(slot->n, sizeof(double));
+	while(i < slot->n){
+		Audio_Frame *frm = (Audio_Frame*)_frame->frame_ptr;
+		val_array[i] = frm->db;
+		avg += frm->db;
+		_frame = _frame->next;
+		i++;
+	}
+	if (i != 0){
+		double test = avg/i;
+		avg = _math_average_dbl(val_array, i);
+		stdev = _math_stdev(_math_variance_dbl(val_array, avg, i));
+		avg_dev = _math_avg_dev_dbl(val_array, i);
+		if (isnan(avg_dev)) avg_dev=0.0;
+		if (isnan(stdev)) stdev = 0.0;
+		double min = 0.0;
+		double max = 0.0;
+		_math_minmax_dbl(val_array, i, &min, &max);
+		printf("%"PRIu64",%04x,%04x,555,%d,%f,%f,%f,%f,%f\n", slot->slot_stop_time,
+			1, 1, i, avg, stdev, avg_dev, min, max);
+		avg = 0.0;
+		stdev = 0.0;
+		avg_dev = 0.0;
+		free(val_array);
+	}
 }
 void process_wifi_ap(SLOT *slot){
         unsigned int i = 0;
@@ -447,6 +525,53 @@ void process_wifi_mon(SLOT *slot){
 	Global_Destinations.n = 0;
 	i = 0;
 }
+void process_ip_short(SLOT *slot){
+        unsigned int i = 0;
+        unsigned int k = 0;
+        unsigned int j = 0;
+        unsigned int freq = 0;
+        double avg = 0.0;
+        double stdev = 0.0;
+        double avg_dev = 0.0;
+        FRAME *_frame = slot->frame_array;
+        while (k < Global_Sources.n){   // for every source
+                while(j < Global_Destinations.n){ // for every destination
+                        _frame = slot->frame_array;
+                        unsigned int *val_array = (unsigned int*)calloc(slot->n, sizeof(int)); // worst$
+                        while(i < slot->n){ // for each packet
+                                IP_Frame *frm = (IP_Frame*)_frame->frame_ptr;
+                                if ((*(Global_Sources.array+k) == frm->src_id) && (*(Global_Destinations.array+j) == frm->dst_id)){
+                                        val_array[freq] = frm->packet_size;
+                                        freq++;
+                                        avg += frm->packet_size;
+                                }
+                                _frame = _frame->next;
+                                i++;
+                        }
+                        double test = avg/freq;
+                        avg = _math_average(val_array, freq);
+                        stdev = _math_stdev(_math_variance(val_array, avg, freq));
+                        avg_dev = _math_avg_dev(val_array, freq);
+                        if (isnan(avg_dev)) avg_dev=0.0;
+                        if (isnan(stdev)) stdev = 0.0;
+                        unsigned int min = 0;
+                        unsigned int max = 0;
+			_math_minmax(val_array, freq, &min, &max);
+                        if (freq != 0)printf("%"PRIu64",%04x,%04x,555,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
+                                 (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)), freq, avg, stdev,avg_dev, min, max);
+                        freq = 0;
+                        avg = 0.0;
+                        i = 0;
+                        free(val_array);
+                        j++;
+                }
+                j = 0;
+                k++;
+        }
+        Global_Sources.n = 0;
+        Global_Destinations.n = 0;
+        i = 0;
+}
 void process_zigbee(SLOT *slot){
         unsigned int i = 0;
 	unsigned int k = 0;
@@ -519,7 +644,7 @@ int main(int argc, char **argv){ int mode = 1;
 			fread(&t_len, sizeof(char), 1, file);
 			fread(&t_wf_frm, t_len, 1, file);
 			if (slot->n == 0){
-				if (global_start_time == 0) global_start_time = t_wf_frm.timestamp;
+				if (global_start_time == 0) global_start_time = (t_wf_frm.timestamp/1000000)*1000000;
 				update_stop_start_times(slot);
 				frame_add(slot, &t_wf_frm, t_len, 1);
 				continue;
@@ -553,7 +678,7 @@ int main(int argc, char **argv){ int mode = 1;
         	        fread(&t_len, sizeof(char), 1, file);
         	        fread(&t_zb_frm, t_len, 1, file);
 			if (slot->n == 0){	// initial start, the rest will be done later in else
-				if (global_start_time == 0) global_start_time = t_zb_frm.timestamp;
+				if (global_start_time == 0) global_start_time = (t_zb_frm.timestamp/1000000)*1000000;
 				update_stop_start_times(slot);
 //				printf("*%"PRIu64"-%"PRIu64" Time: %"PRIu64"\n", slot->slot_start_time, slot->slot_stop_time, t_zb_frm.timestamp);
 //				if (t_zb_frm.timestamp > slot->slot_stop_time){
@@ -625,17 +750,98 @@ int main(int argc, char **argv){ int mode = 1;
                // 	        t_zb_frm.frame_type, t_zb_frm.packet_size, t_zb_frm.flags);
 	// if (t_zb_frm.flags != 1) inc_relation(Start, t_zb_frm.src_id, t_zb_frm.dst_id);
 		} else if (mode == 2){	// IP Short
-			IP_Frame t_ip_frm;
+			IP_Frame t_ips_frm;
         	        fread(&t_len, sizeof(char), 1, file);
-	                fread(&t_ip_frm, sizeof(IP_Frame), 1, file);
+	                fread(&t_ips_frm, sizeof(IP_Frame), 1, file);
+			if (slot->n == 0){      // initial start, the rest will be done later in else
+                                if (global_start_time == 0) global_start_time = (t_ips_frm.timestamp/1000000)*1000000;
+                                update_stop_start_times(slot);
+//                              printf("*%"PRIu64"-%"PRIu64" Time: %"PRIu64"\n", slot->slot_start_time, slot->slot_stop_time, t_zb_frm.timestamp);
+//                              if (t_zb_frm.timestamp > slot->slot_stop_time){
+//                                      printf("\nMoney\n");
+//                                      process_zigbee(slot);
+                                        // processing needs to be done here
+                                        // free slot
+                                        // identify whether current frame fits the slot
+                                        // if not identify how many INTERVALS doesnt fit
+                                                // output 0 until current frame fits and update slot
+//                              }
+                                //slot->frame_array = (FRAME*)calloc(1, sizeof(FRAME));
+                                //slot->frame_array->frame_len = t_len;
+                                //slot->frame_array->frame_ptr = (char*)calloc(1, t_len);
+                                //memcpy(slot->frame_array->frame_ptr, &t_zb_frm, t_len);
+                                //slot->n++;
+                                frame_add(slot, &t_ips_frm, t_len, 1);
+                                continue;
+                        } else {
+                                if ((t_ips_frm.timestamp >= slot->slot_start_time)&&(t_ips_frm.timestamp <= slot->slot_stop_time)){
+					frame_add(slot, &t_ips_frm, t_len, 1);
+                                } else { // the timestamp is higher
+                                        // do stat analysis
+//                                      printf("%"PRIu64"-%"PRIu64" Time: %"PRIu64"\n", slot->slot_start_time, slot->slot_stop_time, t_zb_frm.timestamp);
+
+                                        get_unique_number(slot);
+                                        process_ip_short(slot);
+                                        //printf("\ngot a slot, pkt: %d\n", slot->n);
+                                        if (t_ips_frm.timestamp > slot->slot_stop_time){
+                                                process_ip_short(slot);
+                                        }
+                                        free_slot(slot);
+//                                      printf("\nMallocs: %d Frees: %d\n", mallocs, frees);
+//                                      mallocs = 0; frees =0;
+                                        update_stop_start_times(slot);
+                                        if ((t_ips_frm.timestamp > slot->slot_start_time) && (t_ips_frm.timestamp < slot->slot_stop_time)){
+                                                while(t_ips_frm.timestamp < slot->slot_start_time){
+                                                        // zeros can be padded here
+                                                        //for now catchup
+                                                        update_stop_start_times(slot);
+                                                }
+                                        }
+                                        frame_add(slot, &t_ips_frm, t_len, 1); // add current handled frame
+                                        free(Global_Sources.array);
+                                        free(Global_Destinations.array);
+//                                      free_slot(slot);
+        //                              return 0;
+                                        // free slot
+
+                                        // re-initialize
+                                }
+                                continue;
+                        }
 	// if (t_zb_frm.frame_type == 0) continue;
 	// printf("%04x\n",t_zb_frm.src_id);
 	                printf("%"PRIu64",%04x,%04x,%d,%d\n",
-	                        t_ip_frm.timestamp, t_ip_frm.src_ip, t_ip_frm.dst_ip,
-	                        t_ip_frm.protocol, t_ip_frm.packet_size);//, t_zb_frm.flags);
+	                        t_ips_frm.timestamp, t_ips_frm.src_id, t_ips_frm.dst_id,
+	                        t_ips_frm.protocol, t_ips_frm.packet_size);//, t_zb_frm.flags);
 	// if (t_zb_frm.flags != 1) inc_relation(Start, t_zb_frm.src_id, t_zb_frm.dst_id);
 		} else if (mode == 3){	// Sound else {
-			printf("Mode not supported\n");
+			Audio_Frame t_snd_frm;
+                        fread(&t_len, sizeof(char), 1, file);
+                        fread(&t_snd_frm, t_len, 1, file);
+			if (slot->n == 0){      // initial start, the rest will be done later in else
+                                if (global_start_time == 0) global_start_time = (t_snd_frm.timestamp/1000000)*1000000;
+                                update_stop_start_times(slot);
+				frame_add(slot, &t_snd_frm, t_len, 1);
+			} else {
+				if ((t_snd_frm.timestamp >= slot->slot_start_time)&&(t_snd_frm.timestamp <= slot->slot_stop_time)){
+					frame_add(slot, &t_snd_frm, t_len, 1);
+					continue;
+				} else {
+					process_audio(slot);
+					free_slot(slot);
+					update_stop_start_times(slot);
+                                        if ((t_snd_frm.timestamp > slot->slot_start_time) && (t_snd_frm.timestamp < slot->slot_stop_time)){
+                                                while(t_snd_frm.timestamp < slot->slot_start_time){
+                                                        // zeros can be padded here
+                                                        //for now catchup
+                                                        update_stop_start_times(slot);
+                                                }
+                                        }
+					frame_add(slot, &t_snd_frm, t_len, 1);
+					continue;
+				}
+			}
+			//printf("Mode not supported\n");
 		}
 	}
 // Relation *ptr = Start; // while(ptr->next != 0){ // printf("Relation: %04x -> %04x. Hits: %lu\n", ptr->src_id, ptr->dst_id, ptr->counter); // ptr = ptr->next; //	} //	printf("Debug break");
