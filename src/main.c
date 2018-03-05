@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string.h>
 #include <stdint.h>
+#include <unistd.h>
 #include <fstream>
 
 
@@ -215,7 +216,7 @@ unsigned char enum_add(char *name, Enum_Type *Enum){
 	if(Enum->frame_type == 0){
 		// first
 		char *ptr = name;
-		while(*ptr++ != '\0')i++;
+ 		while(*ptr++ != '\0')i++;
 		//ptr += name_length;
 		Enum->name = (char*)calloc(i+1,sizeof(char));
 		memcpy(Enum->name, name, sizeof(char)*i);
@@ -238,6 +239,35 @@ unsigned char enum_add(char *name, Enum_Type *Enum){
 	} 
 	live_descriptor_write = 1;
 	return frame_type_id;
+}
+unsigned char enum_add_num(char *name, Enum_Type *Enum, unsigned short frame_id){
+	unsigned int i = 0;
+        unsigned short frame_type_id = 0;
+
+        if(Enum->frame_type == 0){
+                // first
+		char *ptr = name;
+		while(*ptr++ != '\0')i++;
+		Enum->name = (char*)calloc(i+1,sizeof(char));
+	        memcpy(Enum->name, name, sizeof(char)*i);
+        	Enum->frame_type = frame_id;
+	        Enum->next = (Enum_Type*)calloc(i, sizeof(Enum_Type));
+        } else {
+                // crawl to the top
+                unsigned int free_frame_type = Enum->frame_type;
+                Enum_Type *pkt_ptr = Enum->next;
+                while(pkt_ptr->name != 0x00) {pkt_ptr = pkt_ptr->next;}
+                char *ptr = name;
+                while(*ptr++ != '\0')i++;
+                //ptr += name_length;
+                pkt_ptr->name = (char*)calloc(i+1,sizeof(char));
+                memcpy(pkt_ptr->name, name, sizeof(char)*i);
+                pkt_ptr->frame_type = free_frame_type+1;
+                frame_type_id = pkt_ptr->frame_type;
+                pkt_ptr->next = (Enum_Type*)calloc(i,sizeof(Enum_Type));
+        }
+        live_descriptor_write = 1;
+        return frame_type_id;
 }
 
 unsigned char enum_find_frame_type(char *name, Enum_Type *Enum){
@@ -523,7 +553,37 @@ void zigb_man_frames_handler(char *after_length_ptr, ZigBee_Frame *zb_object){
 		}
 	}
 }
-
+unsigned char load_maps(){
+	FILE *address_map;
+	FILE *protocol_map;
+	
+	char fname_adr[] = "address_map.csv";
+	char fname_pro[] = "protocol_map.csv";
+	char buffer[1024];
+	unsigned short proto, addr;
+	if ((access(fname_adr, F_OK) != -1) && (access(fname_pro, F_OK) != -1)){
+		address_map = open_file(fname_adr, "r+");
+		protocol_map= open_file(fname_pro, "r+");
+		unsigned comma_index;
+		while(fgets(buffer, sizeof(buffer), address_map)){
+			comma_index = 0;
+			char *t_ptr = (char*)buffer;
+			while(*t_ptr != 0){	// get to comma
+				if (*t_ptr == ','){ *t_ptr =0; t_ptr++; break;}
+				comma_index++;
+				t_ptr++;
+			}
+			addr = atoi(buffer);
+			char *tt_ptr = t_ptr;
+			while (t_ptr != 0){
+				if (*t_ptr == '\n'){ *t_ptr =0; break;}
+				t_ptr++;
+			}
+			enum_add_num(tt_ptr, &IP_Address, addr);
+		}
+	}
+	return 0;
+}
 unsigned int exctract_source_id(char *line, ZigBee_Frame *zb_object){
 	// use int to store src and dst
 	unsigned short src = 0;
@@ -1538,6 +1598,7 @@ int main(int argc, char *argv[])
 	enum_init(&WiFi_Address);
 	enum_init(&IP_Address);
 	enum_init(&Proto_Address);
+	load_maps();
 	unsigned short parameter_flags = argument_flagger(argc, argv);
 	if (((parameter_flags & HELP_FLAG) != 0)){ showHelpMessage(); return 0; }
 	if (((parameter_flags & ZIGB_FLAG) != 0) &&	//
