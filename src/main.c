@@ -64,7 +64,7 @@ typedef struct WiFi_Frame{
 	char*	bssid;
 	unsigned char essid_len;
 	char*	essid;
-	unsigned char frame_type;
+	unsigned short frame_type;
 	unsigned short frame_length;
 	unsigned short frame_sn;
 	unsigned char  frame_fn;
@@ -262,17 +262,18 @@ unsigned char enum_add_num(char *name, Enum_Type *Enum, unsigned short frame_id)
                 //ptr += name_length;
                 pkt_ptr->name = (char*)calloc(i+1,sizeof(char));
                 memcpy(pkt_ptr->name, name, sizeof(char)*i);
-                pkt_ptr->frame_type = free_frame_type+1;
+                pkt_ptr->frame_type = frame_id;
                 frame_type_id = pkt_ptr->frame_type;
                 pkt_ptr->next = (Enum_Type*)calloc(i,sizeof(Enum_Type));
         }
+//	printf("%s - %d", name, frame_id);
         live_descriptor_write = 1;
         return frame_type_id;
 }
 
-unsigned char enum_find_frame_type(char *name, Enum_Type *Enum){
+unsigned short enum_find_frame_type(char *name, Enum_Type *Enum){
 	Enum_Type *pkt_ptr = Enum;
-	unsigned short res = -1;
+	unsigned short res = 0xFFFF;
 	unsigned char length = 0;
 	char *ptr = name;
 	while(*ptr++ != '\0') length++;
@@ -484,7 +485,7 @@ unsigned char manage_enumerations(Enum_Type *Enum, char *start_pointer, char* en
 	char *man_type = (char*)calloc((end_pointer-start_pointer)+1, sizeof(char));mlk_alloc++;
 	memcpy(man_type, start_pointer, sizeof(char)*(end_pointer-start_pointer));
 	unsigned char ft = enum_find_frame_type(man_type, &Enum_Start);
-	if(ft == 0xFF){
+	if(ft == 0xFFFF){
 		ft = enum_add(man_type, &Enum_Start);
 	}
 	free(man_type);
@@ -579,7 +580,25 @@ unsigned char load_maps(){
 				if (*t_ptr == '\n'){ *t_ptr =0; break;}
 				t_ptr++;
 			}
-			enum_add_num(tt_ptr, &IP_Address, addr);
+			if (argument_flags & IP_SHOR_F)enum_add_num(tt_ptr, &IP_Address, addr);
+			if (argument_flags & WIFI_FLAG)enum_add_num(tt_ptr, &WiFi_Address, addr);
+		}
+		while(fgets(buffer, sizeof(buffer), protocol_map)){
+			comma_index = 0;
+                        char *t_ptr = (char*)buffer;
+                        while(*t_ptr != 0){     // get to comma
+                                if (*t_ptr == ','){ *t_ptr =0; t_ptr++; break;}
+                                comma_index++;
+                                t_ptr++;
+                        }
+                        addr = atoi(buffer);
+                        char *tt_ptr = t_ptr;
+                        while (t_ptr != 0){
+                                if (*t_ptr == '\n'){ *t_ptr =0; break;}
+                                t_ptr++;
+                        }
+                        if (argument_flags & IP_SHOR_F)enum_add_num(tt_ptr, &Proto_Address, addr);
+			if (argument_flags & WIFI_FLAG)enum_add_num(tt_ptr, &Enum_Start, addr);
 		}
 	}
 	return 0;
@@ -1065,11 +1084,11 @@ void process_ip_frame(char *line, IP_Frame *ip_frm){
 		destin_ip = (char*)calloc(1, i+1);
 		memcpy(destin_ip, src_ip, i);
 		ip_frm->src_ip = enum_find_frame_type(source_ip, &IP_Address);
-		ip_frm->dst_ip = enum_find_frame_type(destin_ip, &IP_Address);
-		if (ip_frm->src_ip == 0xFF){
+		if (ip_frm->src_ip == 0xFFFF){
 			ip_frm->src_ip = enum_add(source_ip, &IP_Address);
 		}
-		if (ip_frm->dst_ip == 0xFF){
+		 ip_frm->dst_ip = enum_find_frame_type(destin_ip, &IP_Address);
+		if (ip_frm->dst_ip == 0xFFFF){
 			ip_frm->dst_ip = enum_add(destin_ip, &IP_Address);
 		}
 		free(source_ip);
@@ -1085,7 +1104,7 @@ void process_ip_frame(char *line, IP_Frame *ip_frm){
 		source_ip = (char*)calloc(1, i+1);
 		memcpy(source_ip, src_ip, i); // copied the proto
 		ip_frm->protocol = enum_find_frame_type(source_ip, &Proto_Address);
-		if (ip_frm->protocol == 0xFF){	// shift towards short, 0xFF is 255 protos, easily achieved.
+		if (ip_frm->protocol == 0xFFFF){	// shift towards short, 0xFF is 255 protos, easily achieved.
 			ip_frm->protocol = enum_add(source_ip, &Proto_Address);
 		}
 		free(source_ip);
@@ -1140,10 +1159,10 @@ void process_wifi_frame(char *line, WiFi_Frame *wifi_frm){
 		// extracted source and dest
 		wifi_frm->src_id = enum_find_frame_type(source_mac, &WiFi_Address);
 		wifi_frm->dst_id = enum_find_frame_type(destin_mac, &WiFi_Address);
-		if (wifi_frm->src_id == 0xFF){ // not found
+		if (wifi_frm->src_id == 0xFFFF){ // not found
 			wifi_frm->src_id = enum_add(source_mac, &WiFi_Address);
 		}
-		if (wifi_frm->dst_id == 0xFF){ // not found
+		if (wifi_frm->dst_id == 0xFFFF){ // not found
 			wifi_frm->dst_id = enum_add(destin_mac, &WiFi_Address);
 		}
 		free(source_mac);
@@ -1164,7 +1183,7 @@ void process_wifi_frame(char *line, WiFi_Frame *wifi_frm){
 			                source_mac = (char*)calloc(1, i+1); // aloc
 			                memcpy(source_mac, start_mac, i);
 			                wifi_frm->frame_type = enum_find_frame_type(source_mac, &Enum_Start);
-			                if (wifi_frm->frame_type == 0xFF){
+			                if (wifi_frm->frame_type == 0xFFFF){
 			                       wifi_frm->frame_type = enum_add(source_mac, &Enum_Start);
 			                }
 			                free(source_mac); // frr
@@ -1201,7 +1220,7 @@ void process_wifi_frame(char *line, WiFi_Frame *wifi_frm){
 		source_mac = (char*)calloc(1, i+1); // aloc
 		memcpy(source_mac, start_mac, i);
 		wifi_frm->frame_type = enum_find_frame_type(source_mac, &Enum_Start);
-		if (wifi_frm->frame_type == 0xFF){
+		if (wifi_frm->frame_type == 0xFFFF){
 			wifi_frm->frame_type = enum_add(source_mac, &Enum_Start);
 		}
 		free(source_mac); // frr
@@ -1598,8 +1617,9 @@ int main(int argc, char *argv[])
 	enum_init(&WiFi_Address);
 	enum_init(&IP_Address);
 	enum_init(&Proto_Address);
-	load_maps();
+	//load_maps();
 	unsigned short parameter_flags = argument_flagger(argc, argv);
+	load_maps();
 	if (((parameter_flags & HELP_FLAG) != 0)){ showHelpMessage(); return 0; }
 	if (((parameter_flags & ZIGB_FLAG) != 0) &&	//
 		((parameter_flags & IN_F_FLAG) != 0) && 
