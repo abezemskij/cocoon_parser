@@ -463,7 +463,7 @@ void process_wifi_ap(SLOT *slot){
                         unsigned int min = 0;
                         unsigned int max = 0;
                         _math_minmax(val_array, freq, &min, &max);
-                        if (freq != 0)printf("%"PRIu64",%04x,%04x,555,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
+                        if (freq != 0)printf("%"PRIu64",%d,%d,555,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
                                  (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)), freq, avg, stdev,avg_dev, min, max);
                         freq = 0;
                         avg = 0.0;
@@ -510,7 +510,7 @@ void process_wifi_mon(SLOT *slot){
 			unsigned int min = 0;
 			unsigned int max = 0;
 			_math_minmax(val_array, freq, &min, &max);
-			if (freq != 0)printf("%"PRIu64",%04x,%04x,555,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
+			if (freq != 0)printf("%"PRIu64",%d,%d,555,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
 				(*(Global_Sources.array+k)), (*(Global_Destinations.array+j)), freq, avg, stdev,avg_dev, min, max);
 			freq = 0;
 			avg = 0.0;
@@ -557,7 +557,7 @@ void process_ip_short(SLOT *slot){
                         unsigned int min = 0;
                         unsigned int max = 0;
 			_math_minmax(val_array, freq, &min, &max);
-                        if (freq != 0)printf("%"PRIu64",%04x,%04x,555,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
+                        if (freq != 0)printf("%"PRIu64",%d,%d,555,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
                                  (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)), freq, avg, stdev,avg_dev, min, max);
                         freq = 0;
                         avg = 0.0;
@@ -810,9 +810,9 @@ int main(int argc, char **argv){ int mode = 1;
                         }
 	// if (t_zb_frm.frame_type == 0) continue;
 	// printf("%04x\n",t_zb_frm.src_id);
-	                printf("%"PRIu64",%04x,%04x,%d,%d\n",
-	                        t_ips_frm.timestamp, t_ips_frm.src_id, t_ips_frm.dst_id,
-	                        t_ips_frm.protocol, t_ips_frm.packet_size);//, t_zb_frm.flags);
+//	                printf("%"PRIu64",%04x,%04x,%d,%d\n",
+//	                        t_ips_frm.timestamp, t_ips_frm.src_id, t_ips_frm.dst_id,
+//	                        t_ips_frm.protocol, t_ips_frm.packet_size);//, t_zb_frm.flags);
 	// if (t_zb_frm.flags != 1) inc_relation(Start, t_zb_frm.src_id, t_zb_frm.dst_id);
 		} else if (mode == 3){	// Sound else {
 			Audio_Frame t_snd_frm;
