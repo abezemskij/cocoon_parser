@@ -210,7 +210,7 @@ void enum_init(Enum_Type *Enum){
 	Enum->name = 0x00;
 	Enum->next = 0x00;
 }
-unsigned char enum_add(char *name, Enum_Type *Enum){
+unsigned short enum_add(char *name, Enum_Type *Enum){
 	unsigned int i = 0;
 	unsigned short frame_type_id = 0;
 	if(Enum->frame_type == 0){
@@ -240,7 +240,7 @@ unsigned char enum_add(char *name, Enum_Type *Enum){
 	live_descriptor_write = 1;
 	return frame_type_id;
 }
-unsigned char enum_add_num(char *name, Enum_Type *Enum, unsigned short frame_id){
+unsigned short enum_add_num(char *name, Enum_Type *Enum, unsigned short frame_id){
 	unsigned int i = 0;
         unsigned short frame_type_id = 0;
 
@@ -484,7 +484,7 @@ uint64_t convert_date_to_epoch(char* line){ // requires trimmed version
 unsigned char manage_enumerations(Enum_Type *Enum, char *start_pointer, char* end_pointer){
 	char *man_type = (char*)calloc((end_pointer-start_pointer)+1, sizeof(char));mlk_alloc++;
 	memcpy(man_type, start_pointer, sizeof(char)*(end_pointer-start_pointer));
-	unsigned char ft = enum_find_frame_type(man_type, &Enum_Start);
+	unsigned short ft = enum_find_frame_type(man_type, &Enum_Start);
 	if(ft == 0xFFFF){
 		ft = enum_add(man_type, &Enum_Start);
 	}

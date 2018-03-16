@@ -28,8 +28,10 @@ uint64_t global_start_time = 0;
 int     slot_parsed_counter = 0;
 unsigned long mallocs = 0;
 unsigned long frees = 0;
+unsigned char operation = 0;
 SOURCE_ENUM Global_Sources;
 SOURCE_ENUM Global_Destinations;
+SOURCE_ENUM Global_Frames;
 unsigned char filter_address(void *object, unsigned char type, unsigned short exclude_addr){
 	switch(type){
 		case 1:
