@@ -142,6 +142,92 @@ void update_stop_start_times(SLOT *slot){
 	}
 	i = 0;
 }*/
+unsigned short get_unique_number_frames(SLOT *slot){
+   // enumerate id's
+        unsigned int i = 0;
+        unsigned short unique_ft = 0;
+        FRAME *_frame = slot->frame_array;
+        unsigned short *ft_array = 0;
+        while(i < slot->n){
+		if (unique_ft == 0){
+			switch(operation){
+				case 0:		// Wifi
+				if (((WiFi_Frame*)_frame->frame_ptr) != 0){
+					ft_array = (unsigned short*)calloc(1, sizeof(short));
+					*ft_array = ((WiFi_Frame*)_frame->frame_ptr)->frame_type;
+					unique_ft++;
+				}
+					break;
+				case 1:		// ZigBee
+				if (((ZigBee_Frame*)_frame->frame_ptr) != 0){
+					ft_array = (unsigned short*)calloc(1, sizeof(short));
+					*ft_array = ((ZigBee_Frame*)_frame->frame_ptr)->frame_type;
+					unique_ft++;
+				}
+					break;
+				case 2:		// IP
+				if (((IP_Frame*)_frame->frame_ptr) != 0){
+					ft_array = (unsigned short*)calloc(1, sizeof(short));
+					*ft_array = ((IP_Frame*)_frame->frame_ptr)->protocol;
+					unique_ft++;
+				}
+					break;
+				case 3:		// Sound
+					break;
+				default:
+					break;
+			}
+		} else {
+
+			unsigned short _t = 0;
+			unsigned short *_ptr = ft_array;
+			unsigned char found = 0;
+			unsigned short storage = 0;
+			while(_t < unique_ft){
+				switch(operation){
+					case 0:
+						storage = ((WiFi_Frame*)_frame->frame_ptr)->frame_type;
+						break;
+					case 1:
+						storage = ((ZigBee_Frame*)_frame->frame_ptr)->frame_type;
+						break;
+					case 2:
+						storage = ((IP_Frame*)_frame->frame_ptr)->protocol;
+						break;
+					case 3:
+						break;
+					default:
+						break;
+				}
+				if (_ptr[_t] == storage){
+					found = 1;
+					break;
+				}
+
+				_t++;
+			}
+			if (found != 1){ // if src was not found, add
+				unique_ft++;   // this will be added
+				unsigned short *free_me = ft_array;
+				unsigned short *upd_ft_array = (unsigned short*)calloc(unique_ft, sizeof(short)); // allocate known unique +1
+				memcpy(upd_ft_array, free_me, sizeof(short)*(unique_ft-1));
+				free(free_me);
+				free_me = upd_ft_array+unique_ft-1;
+				*free_me = storage;
+				ft_array = upd_ft_array;
+			}
+		}
+		i++;
+		_frame = _frame->next;
+
+	}
+
+	//if (src_array != 0) free(src_array);
+	Global_Frames.array = ft_array;
+	Global_Frames.n = unique_ft;
+	return unique_ft;
+
+}
 unsigned short get_unique_number_wi(SLOT *slot){   // enumerate id's
         unsigned int i = 0;
         unsigned short unique_src = 0;
@@ -437,23 +523,28 @@ void process_wifi_ap(SLOT *slot){
         unsigned int i = 0;
         unsigned int k = 0;
         unsigned int j = 0;
+	unsigned int f = 0;
         unsigned int freq = 0;
         double avg = 0.0;
         double stdev = 0.0;
         double avg_dev = 0.0;
+	unsigned proceed = 0;
         FRAME *_frame = slot->frame_array;
-        while (k < Global_Sources.n){   // for every source
-                while(j < Global_Destinations.n){ // for every destination
+	while (f < Global_Frames.n){
+	        while (k < Global_Sources.n){   // for every source
+       	         while(j < Global_Destinations.n){ // for every destination
                         _frame = slot->frame_array;
                         unsigned int *val_array = (unsigned int*)calloc(slot->n, sizeof(int)); // worst case scenario
                         while(i < slot->n){ // for each packet
                                 ZigBee_Frame *frm = (ZigBee_Frame*)_frame->frame_ptr;
-                                if ((*(Global_Sources.array+k) == frm->src_id) && (*(Global_Destinations.array+j) == frm->dst_id)){
+				if (frm->frame_type == (*(Global_Frames.array+f))) proceed = 1;
+                                if (proceed && (*(Global_Sources.array+k) == frm->src_id) && (*(Global_Destinations.array+j) == frm->dst_id)){
                                         val_array[freq] = frm->packet_size;
                                         freq++;
                                         avg += frm->packet_size;
                                 }
                                 _frame = _frame->next;
+				proceed = 0;
                                 i++;
                         }
                         double test = avg/freq;
@@ -465,8 +556,8 @@ void process_wifi_ap(SLOT *slot){
                         unsigned int min = 0;
                         unsigned int max = 0;
                         _math_minmax(val_array, freq, &min, &max);
-                        if (freq != 0)printf("%"PRIu64",%d,%d,555,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
-                                 (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)), freq, avg, stdev,avg_dev, min, max);
+                        if (freq != 0)printf("%"PRIu64",%d,%d,%d,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
+                                 (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)),(*(Global_Frames.array+f)), freq, avg, stdev,avg_dev, min, max);
                         freq = 0;
                         avg = 0.0;
                         i = 0;
@@ -476,8 +567,12 @@ void process_wifi_ap(SLOT *slot){
                 j = 0;
                 k++;
         }
+	k = 0; j = 0;
+	f++;
+	}
         Global_Sources.n = 0;
         Global_Destinations.n = 0;
+	Global_Frames.n = 0;
         i = 0;
 }
 void process_wifi_mon(SLOT *slot){
@@ -485,22 +580,27 @@ void process_wifi_mon(SLOT *slot){
 	unsigned int k = 0;
 	unsigned int j = 0;
 	unsigned int freq = 0;
+	unsigned int f = 0;
 	double avg = 0.0;
 	double stdev = 0.0;
 	double avg_dev = 0.0;
+	unsigned proceed = 0;
 	FRAME *_frame = slot->frame_array;
+	while(f < Global_Frames.n){
 	while(k < Global_Sources.n){
 		while(j < Global_Destinations.n){
 			_frame = slot->frame_array;
 			unsigned int *val_array = (unsigned int*)calloc(slot->n, sizeof(int)); // worst case scenario
 			while(i < slot->n){
 				WiFi_Frame *frm = (WiFi_Frame*)_frame->frame_ptr;
-				if ((*(Global_Sources.array+k) == frm->src_id) && (*(Global_Destinations.array+j) == frm->dst_id)){
+				if (frm->frame_type == (*(Global_Frames.array+f))) proceed = 1;
+				if (proceed && (*(Global_Sources.array+k) == frm->src_id) && (*(Global_Destinations.array+j) == frm->dst_id)){
 					val_array[freq] = frm->frame_length;
 					freq++;
 					avg += frm->frame_length;
 				}
 				_frame = _frame->next;
+				proceed = 0;
 				i++;
 			}
 			double test = avg/freq;
@@ -512,8 +612,8 @@ void process_wifi_mon(SLOT *slot){
 			unsigned int min = 0;
 			unsigned int max = 0;
 			_math_minmax(val_array, freq, &min, &max);
-			if (freq != 0)printf("%"PRIu64",%d,%d,555,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
-				(*(Global_Sources.array+k)), (*(Global_Destinations.array+j)), freq, avg, stdev,avg_dev, min, max);
+			if (freq != 0)printf("%"PRIu64",%d,%d,%d,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
+				(*(Global_Sources.array+k)), (*(Global_Destinations.array+j)), (*(Global_Frames.array+f)), freq, avg, stdev,avg_dev, min, max);
 			freq = 0;
 			avg = 0.0;
 			i = 0;
@@ -523,8 +623,12 @@ void process_wifi_mon(SLOT *slot){
 		j = 0;
 		k++;
 	}
+	k = 0; j = 0;
+	f++;
+	}
 	Global_Sources.n = 0;
 	Global_Destinations.n = 0;
+	Global_Frames.n = 0;
 	i = 0;
 }
 void process_ip_short(SLOT *slot){
@@ -532,46 +636,55 @@ void process_ip_short(SLOT *slot){
         unsigned int k = 0;
         unsigned int j = 0;
         unsigned int freq = 0;
+	unsigned int f = 0;
         double avg = 0.0;
         double stdev = 0.0;
         double avg_dev = 0.0;
+	unsigned char proceed = 0;
         FRAME *_frame = slot->frame_array;
-        while (k < Global_Sources.n){   // for every source
-                while(j < Global_Destinations.n){ // for every destination
-                        _frame = slot->frame_array;
-                        unsigned int *val_array = (unsigned int*)calloc(slot->n, sizeof(int)); // worst$
-                        while(i < slot->n){ // for each packet
-                                IP_Frame *frm = (IP_Frame*)_frame->frame_ptr;
-                                if ((*(Global_Sources.array+k) == frm->src_id) && (*(Global_Destinations.array+j) == frm->dst_id)){
-                                        val_array[freq] = frm->packet_size;
-                                        freq++;
-                                        avg += frm->packet_size;
-                                }
-                                _frame = _frame->next;
-                                i++;
-                        }
-                        double test = avg/freq;
-                        avg = _math_average(val_array, freq);
-                        stdev = _math_stdev(_math_variance(val_array, avg, freq));
-                        avg_dev = _math_avg_dev(val_array, freq);
-                        if (isnan(avg_dev)) avg_dev=0.0;
-                        if (isnan(stdev)) stdev = 0.0;
-                        unsigned int min = 0;
-                        unsigned int max = 0;
-			_math_minmax(val_array, freq, &min, &max);
-                        if (freq != 0)printf("%"PRIu64",%d,%d,555,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
-                                 (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)), freq, avg, stdev,avg_dev, min, max);
-                        freq = 0;
-                        avg = 0.0;
-                        i = 0;
-                        free(val_array);
-                        j++;
-                }
-                j = 0;
-                k++;
-        }
+	while (f < Global_Frames.n){
+	        while (k < Global_Sources.n){   // for every source
+	                while(j < Global_Destinations.n){ // for every destination
+	                        _frame = slot->frame_array;
+	                        unsigned int *val_array = (unsigned int*)calloc(slot->n, sizeof(int)); // worst$
+	                        while(i < slot->n){ // for each packet
+	                                IP_Frame *frm = (IP_Frame*)_frame->frame_ptr;
+					if (frm->protocol == (*(Global_Frames.array+f))) proceed = 1;
+	                                if (proceed && (*(Global_Sources.array+k) == frm->src_id) && (*(Global_Destinations.array+j) == frm->dst_id)){
+	                                        val_array[freq] = frm->packet_size;
+	                                        freq++;
+	                                        avg += frm->packet_size;
+	                                }
+	                                _frame = _frame->next;
+					proceed = 0;
+	                                i++;
+				}
+	                        double test = avg/freq;
+	                        avg = _math_average(val_array, freq);
+	                        stdev = _math_stdev(_math_variance(val_array, avg, freq));
+	                        avg_dev = _math_avg_dev(val_array, freq);
+	                        if (isnan(avg_dev)) avg_dev=0.0;
+	                        if (isnan(stdev)) stdev = 0.0;
+	                        unsigned int min = 0;
+	                        unsigned int max = 0;
+				_math_minmax(val_array, freq, &min, &max);
+	                        if (freq != 0)printf("%"PRIu64",%d,%d,%d,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
+	                                 (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)),(*(Global_Frames.array+f)), freq, avg, stdev,avg_dev, min, max);
+	                        freq = 0;
+	                        avg = 0.0;
+	                        i = 0;
+	                        free(val_array);
+	                        j++;
+	                }
+	                j = 0;
+	                k++;
+	        }
+		k = 0; j = 0;
+		f++;
+	}
         Global_Sources.n = 0;
         Global_Destinations.n = 0;
+	Global_Frames.n = 0;
         i = 0;
 }
 void process_zigbee(SLOT *slot){
@@ -579,22 +692,27 @@ void process_zigbee(SLOT *slot){
 	unsigned int k = 0;
 	unsigned int j = 0;
 	unsigned int freq = 0;
+	unsigned int f = 0;
 	double avg = 0.0;
 	double stdev = 0.0;
 	double avg_dev = 0.0;
+	unsigned int proceed = 0;
         FRAME *_frame = slot->frame_array;
+	while (f < Global_Frames.n){
 	while (k < Global_Sources.n){	// for every source
 		while(j < Global_Destinations.n){ // for every destination
 			_frame = slot->frame_array;
 			unsigned int *val_array = (unsigned int*)calloc(slot->n, sizeof(int)); // worst case scenario
 			while(i < slot->n){ // for each packet
 				ZigBee_Frame *frm = (ZigBee_Frame*)_frame->frame_ptr;
-				if ((*(Global_Sources.array+k) == frm->src_id) && (*(Global_Destinations.array+j) == frm->dst_id)){
+				if (frm->frame_type == (*(Global_Frames.array+f))) proceed = 1;
+				if (proceed && (*(Global_Sources.array+k) == frm->src_id) && (*(Global_Destinations.array+j) == frm->dst_id)){
 					val_array[freq] = frm->packet_size;
 					freq++;
 					avg += frm->packet_size;
 				}
 				_frame = _frame->next;
+				proceed = 0;
 				i++;
 			}
 			double test = avg/freq;
@@ -606,8 +724,8 @@ void process_zigbee(SLOT *slot){
 			unsigned int min = 0;
 			unsigned int max = 0;
 			_math_minmax(val_array, freq, &min, &max);
-			if (freq != 0)printf("%"PRIu64",%04x,%04x,555,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
-				 (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)), freq, avg, stdev,avg_dev, min, max);
+			if (freq != 0)printf("%"PRIu64",%04x,%04x,%d,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
+				 (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)),(*(Global_Frames.array+f)), freq, avg, stdev,avg_dev, min, max);
 			freq = 0;
 			avg = 0.0;
 			i = 0;
@@ -617,8 +735,12 @@ void process_zigbee(SLOT *slot){
 		j = 0;
 		k++;
 	}
+	k = 0; j = 0;
+	f++;
+	}
 	Global_Sources.n = 0;
 	Global_Destinations.n = 0;
+	Global_Frames.n = 0;
         i = 0;
 }
 
@@ -626,6 +748,7 @@ int main(int argc, char **argv){ int mode = 1;
 	FILE *file = fopen(argv[1], "rb");
 	if (argc > 2){
 		mode = atoi(argv[2]);
+		operation = mode;
 	}
 	if (argc > 3){
 
@@ -655,6 +778,7 @@ int main(int argc, char **argv){ int mode = 1;
 					frame_add(slot, &t_wf_frm, t_len, 1);
 				} else {
 					get_unique_number_wi(slot);
+					get_unique_number_frames(slot);
 					// process
 					process_wifi_mon(slot);
 					free_slot(slot);
@@ -668,6 +792,7 @@ int main(int argc, char **argv){ int mode = 1;
 					frame_add(slot, &t_wf_frm, t_len, 1);
 					free(Global_Sources.array);
 					free(Global_Destinations.array);
+					free(Global_Frames.array);
 					continue;
 				}
 				continue;
@@ -718,6 +843,7 @@ int main(int argc, char **argv){ int mode = 1;
 //					printf("%"PRIu64"-%"PRIu64" Time: %"PRIu64"\n", slot->slot_start_time, slot->slot_stop_time, t_zb_frm.timestamp);
 					
 					get_unique_number(slot);
+					get_unique_number_frames(slot);
 					process_zigbee(slot);
 					//printf("\ngot a slot, pkt: %d\n", slot->n);
 					if (t_zb_frm.timestamp > slot->slot_stop_time){
@@ -737,6 +863,7 @@ int main(int argc, char **argv){ int mode = 1;
 					frame_add(slot, &t_zb_frm, t_len, 1); // add current handled frame
 					free(Global_Sources.array);
 					free(Global_Destinations.array);
+					free(Global_Frames.array);
 //					free_slot(slot);
 	//				return 0;
 					// free slot
@@ -783,6 +910,7 @@ int main(int argc, char **argv){ int mode = 1;
 //                                      printf("%"PRIu64"-%"PRIu64" Time: %"PRIu64"\n", slot->slot_start_time, slot->slot_stop_time, t_zb_frm.timestamp);
 
                                         get_unique_number(slot);
+					get_unique_number_frames(slot);
                                         process_ip_short(slot);
                                         //printf("\ngot a slot, pkt: %d\n", slot->n);
                                         if (t_ips_frm.timestamp > slot->slot_stop_time){
@@ -802,6 +930,7 @@ int main(int argc, char **argv){ int mode = 1;
                                         frame_add(slot, &t_ips_frm, t_len, 1); // add current handled frame
                                         free(Global_Sources.array);
                                         free(Global_Destinations.array);
+					free(Global_Frames.array);
 //                                      free_slot(slot);
         //                              return 0;
                                         // free slot
