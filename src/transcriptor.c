@@ -6,7 +6,7 @@
 #include <limits.h>
 #include "structures.h"
 
-#define INTERVAL 1000000//1000000 // second
+#define INTERVAL 1//1000000 // second
 
 typedef struct FRAME{
 	unsigned int frame_len;
@@ -697,6 +697,7 @@ void process_zigbee(SLOT *slot){
 	double stdev = 0.0;
 	double avg_dev = 0.0;
 	unsigned int proceed = 0;
+	unsigned int flags = 0;
         FRAME *_frame = slot->frame_array;
 	while (f < Global_Frames.n){
 	while (k < Global_Sources.n){	// for every source
@@ -710,7 +711,11 @@ void process_zigbee(SLOT *slot){
 					val_array[freq] = frm->packet_size;
 					freq++;
 					avg += frm->packet_size;
+					if (frm->flags == 1) printf("%"PRIu64",%04x,%04x,%d,%d,%d\n", slot->slot_stop_time, (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)),(*(Global_Frames.array+f)), frm->packet_size, frm->flags);
+					if (frm->flags == 0) printf("%"PRIu64",%04x,%04x,%d,%d,%d\n", slot->slot_stop_time, (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)),(*(Global_Frames.array+f)), frm->packet_size, frm->flags);
 				}
+				// assuming there is only 1 packet in the slot
+				flags = frm->flags;
 				_frame = _frame->next;
 				proceed = 0;
 				i++;
@@ -724,8 +729,8 @@ void process_zigbee(SLOT *slot){
 			unsigned int min = 0;
 			unsigned int max = 0;
 			_math_minmax(val_array, freq, &min, &max);
-			if (freq != 0)printf("%"PRIu64",%04x,%04x,%d,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
-				 (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)),(*(Global_Frames.array+f)), freq, avg, stdev,avg_dev, min, max);
+// old 			if (freq != 0)printf("%"PRIu64",%04x,%04x,%d,%d,%f,%f,%f,%d,%d,%d\n", slot->slot_stop_time,
+//				 (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)),(*(Global_Frames.array+f)), freq, avg, stdev,avg_dev, min, max, flags);
 			freq = 0;
 			avg = 0.0;
 			i = 0;
