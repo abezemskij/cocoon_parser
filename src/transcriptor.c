@@ -63,7 +63,6 @@ SLOT* slot_init(){
 	return ptr;
 }
 void free_slot(SLOT *slot){
-	char *ptr;
 	FRAME *frame_ptr;
 	FRAME *min_one;
 	frame_ptr = slot->frame_array;
@@ -487,8 +486,6 @@ double _math_avg_dev_dbl(double *array, unsigned int n){
 }
 void process_audio(SLOT *slot){
         unsigned int i = 0;
-        unsigned int k = 0;
-        unsigned int j = 0;
         double avg = 0.0;
         double stdev = 0.0;
         double avg_dev = 0.0;
@@ -502,7 +499,6 @@ void process_audio(SLOT *slot){
 		i++;
 	}
 	if (i != 0){
-		double test = avg/i;
 		avg = _math_average_dbl(val_array, i);
 		stdev = _math_stdev(_math_variance_dbl(val_array, avg, i));
 		avg_dev = _math_avg_dev_dbl(val_array, i);
@@ -511,7 +507,7 @@ void process_audio(SLOT *slot){
 		double min = 0.0;
 		double max = 0.0;
 		_math_minmax_dbl(val_array, i, &min, &max);
-		printf("%"PRIu64",%04x,%04x,555,%d,%f,%f,%f,%f,%f\n", slot->slot_stop_time,
+		printf("%" PRIu64 ",%04x,%04x,555,%d,%f,%f,%f,%f,%f\n", slot->slot_stop_time,
 			1, 1, i, avg, stdev, avg_dev, min, max);
 		avg = 0.0;
 		stdev = 0.0;
@@ -547,7 +543,6 @@ void process_wifi_ap(SLOT *slot){
 				proceed = 0;
                                 i++;
                         }
-                        double test = avg/freq;
                         avg = _math_average(val_array, freq);
                         stdev = _math_stdev(_math_variance(val_array, avg, freq));
                         avg_dev = _math_avg_dev(val_array, freq);
@@ -556,7 +551,7 @@ void process_wifi_ap(SLOT *slot){
                         unsigned int min = 0;
                         unsigned int max = 0;
                         _math_minmax(val_array, freq, &min, &max);
-                        if (freq != 0)printf("%"PRIu64",%d,%d,%d,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
+                        if (freq != 0)printf("%" PRIu64 ",%d,%d,%d,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
                                  (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)),(*(Global_Frames.array+f)), freq, avg, stdev,avg_dev, min, max);
                         freq = 0;
                         avg = 0.0;
@@ -603,7 +598,6 @@ void process_wifi_mon(SLOT *slot){
 				proceed = 0;
 				i++;
 			}
-			double test = avg/freq;
 			avg = _math_average(val_array, freq);
 			stdev = _math_stdev(_math_variance(val_array, avg, freq));
 			avg_dev = _math_avg_dev(val_array, freq);
@@ -612,7 +606,7 @@ void process_wifi_mon(SLOT *slot){
 			unsigned int min = 0;
 			unsigned int max = 0;
 			_math_minmax(val_array, freq, &min, &max);
-			if (freq != 0)printf("%"PRIu64",%d,%d,%d,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
+			if (freq != 0)printf("%" PRIu64 ",%d,%d,%d,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
 				(*(Global_Sources.array+k)), (*(Global_Destinations.array+j)), (*(Global_Frames.array+f)), freq, avg, stdev,avg_dev, min, max);
 			freq = 0;
 			avg = 0.0;
@@ -659,7 +653,6 @@ void process_ip_short(SLOT *slot){
 					proceed = 0;
 	                                i++;
 				}
-	                        double test = avg/freq;
 	                        avg = _math_average(val_array, freq);
 	                        stdev = _math_stdev(_math_variance(val_array, avg, freq));
 	                        avg_dev = _math_avg_dev(val_array, freq);
@@ -668,7 +661,7 @@ void process_ip_short(SLOT *slot){
 	                        unsigned int min = 0;
 	                        unsigned int max = 0;
 				_math_minmax(val_array, freq, &min, &max);
-	                        if (freq != 0)printf("%"PRIu64",%d,%d,%d,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
+	                        if (freq != 0)printf("%" PRIu64 ",%d,%d,%d,%d,%f,%f,%f,%d,%d\n", slot->slot_stop_time,
 	                                 (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)),(*(Global_Frames.array+f)), freq, avg, stdev,avg_dev, min, max);
 	                        freq = 0;
 	                        avg = 0.0;
@@ -697,7 +690,7 @@ void process_zigbee(SLOT *slot){
 	double stdev = 0.0;
 	double avg_dev = 0.0;
 	unsigned int proceed = 0;
-	unsigned int flags = 0;
+//	unsigned char flags = 0;
         FRAME *_frame = slot->frame_array;
 	while (f < Global_Frames.n){
 	while (k < Global_Sources.n){	// for every source
@@ -711,16 +704,15 @@ void process_zigbee(SLOT *slot){
 					val_array[freq] = frm->packet_size;
 					freq++;
 					avg += frm->packet_size;
-					if (frm->flags == 1) printf("%"PRIu64",%04x,%04x,%d,%d,%d\n", slot->slot_stop_time, (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)),(*(Global_Frames.array+f)), frm->packet_size, frm->flags);
-					if (frm->flags == 0) printf("%"PRIu64",%04x,%04x,%d,%d,%d\n", slot->slot_stop_time, (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)),(*(Global_Frames.array+f)), frm->packet_size, frm->flags);
+					if (frm->flags == 1) printf("%" PRIu64 ",%04x,%04x,%d,%d,%d\n", slot->slot_stop_time, (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)),(*(Global_Frames.array+f)), frm->packet_size, frm->flags);
+					if (frm->flags == 0) printf("%" PRIu64 ",%04x,%04x,%d,%d,%d\n", slot->slot_stop_time, (*(Global_Sources.array+k)), (*(Global_Destinations.array+j)),(*(Global_Frames.array+f)), frm->packet_size, frm->flags);
 				}
 				// assuming there is only 1 packet in the slot
-				flags = frm->flags;
+			//	flags = frm->flags;
 				_frame = _frame->next;
 				proceed = 0;
 				i++;
 			}
-			double test = avg/freq;
 			avg = _math_average(val_array, freq);
 			stdev = _math_stdev(_math_variance(val_array, avg, freq));
 			avg_dev = _math_avg_dev(val_array, freq);
@@ -760,7 +752,6 @@ int main(int argc, char **argv){ int mode = 1;
 	}
 	int version = 0;
 	int pkt_number = 0;
-	unsigned char slot_index;
 	fseek(file, 0, SEEK_SET);
 	fread(&version, sizeof(int), 1, file);
 	fread(&pkt_number,sizeof(int), 1,file);
@@ -802,7 +793,7 @@ int main(int argc, char **argv){ int mode = 1;
 				}
 				continue;
 			}
-			printf("%"PRIu64",%04x,%04x,%d,%d,%d\n",
+			printf("%" PRIu64 ",%04x,%04x,%d,%d,%d\n",
 				t_wf_frm.timestamp, t_wf_frm.src_id, t_wf_frm.dst_id,
 				t_wf_frm.bssid_len, t_wf_frm.essid_len, t_wf_frm.frame_type);
 		} else if (mode == 1){	// ZigBee

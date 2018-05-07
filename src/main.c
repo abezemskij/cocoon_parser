@@ -21,6 +21,7 @@
 #define PARAMETERF 1<<7 // Parameter for input/output is parsed next
 #define IP_SHOR_F  1<<8 // IP Short version
 #define AUDIO_FLA  1<<9 // Audio flag in a format of <timestamp>,<value>
+#define STDOUT_FL  1<<10 // --stout equivalent
 #define WIN_MODE 1
 #define LINE_INIT  100000	// Lines initialized
 
@@ -83,7 +84,7 @@ typedef struct Enum_Type{
 }Enum_Type;
 
 unsigned short argument_flags = 0;
-char *in_filename_ptr, *out_filename_ptr;
+char *in_filename_ptr = NULL, *out_filename_ptr = NULL;
 char *path;
 char *descriptor_filename_start;
 
@@ -127,6 +128,8 @@ unsigned short extract_flag(char *arg){
 		args |= IP_SHOR_F;
 	} else if (strcmp(arg, "-a") == 0){
 		args |= AUDIO_FLA;
+	} else if (strcmp(arg, "-t") == 0){
+		args |= STDOUT_FL;
 	} else {
 		if (argument_flags & PARAMETERF){
 			if ((in_filename_ptr == 0) && ((argument_flags & IN_F_FLAG) != 0)){
@@ -167,7 +170,7 @@ unsigned short argument_flagger(int argc, char* argv[]){
 unsigned char validate_flags(unsigned char args){
 	unsigned char res = 0;
 	// If live is set, then output is necessary
-	if ((argument_flags & LIVE_FLAG)) if ((argument_flags & OU_F_FLAG)) res = 1;
+	if ((argument_flags & LIVE_FLAG)) if ((argument_flags & OU_F_FLAG) || (argument_flags & STDOUT_FL)) res = 1;
 	// If Input is set, then output is necessary
 	if ((argument_flags & IN_F_FLAG)) if ((argument_flags & OU_F_FLAG)) res = 1;
 	// If Auto, then no zigbee or wifi
@@ -254,7 +257,6 @@ unsigned short enum_add_num(char *name, Enum_Type *Enum, unsigned short frame_id
 	        Enum->next = (Enum_Type*)calloc(i, sizeof(Enum_Type));
         } else {
                 // crawl to the top
-                unsigned int free_frame_type = Enum->frame_type;
                 Enum_Type *pkt_ptr = Enum->next;
                 while(pkt_ptr->name != 0x00) {pkt_ptr = pkt_ptr->next;}
                 char *ptr = name;
@@ -421,7 +423,6 @@ uint64_t get_number_of_lines(FILE *file){
 }
 
 uint64_t convert_date_to_epoch(char* line){ // requires trimmed version
-	char *debug_line = line;
 	uint64_t  ret_res = 0;
 	char* year = (char*)calloc(5, sizeof(char)); // format 2017 +1 for 0x00
 	char* month = (char*)calloc(3, sizeof(char)); // format 12 +1 for 0x00
@@ -557,11 +558,10 @@ void zigb_man_frames_handler(char *after_length_ptr, ZigBee_Frame *zb_object){
 unsigned char load_maps(){
 	FILE *address_map;
 	FILE *protocol_map;
-	
 	char fname_adr[] = "address_map.csv";
 	char fname_pro[] = "protocol_map.csv";
 	char buffer[1024];
-	unsigned short proto, addr;
+	unsigned short addr;
 	if ((access(fname_adr, F_OK) != -1) && (access(fname_pro, F_OK) != -1)){
 		address_map = open_file(fname_adr, "r+");
 		protocol_map= open_file(fname_pro, "r+");
@@ -800,16 +800,20 @@ char *extract_next_line(FILE *file, int *len){
 }
 
 void write_descriptor(Enum_Type *Enum, const char *file){
-	char filename[64] = { 0 };
+//	char filename[64] = { 0 };
 	int i = 0;
 	while(*(file+i) != '\0')i++;
 	int j = 0;
 	while(*(out_filename_ptr+j) != '\0')j++;
 	char *final = (char*)calloc(1, sizeof(char)*(i+j+2));
-	memcpy(final, out_filename_ptr, j-4);
-	memcpy((final+j-4), "_", 1);
-	memcpy((final+j+1-4), file, i); 
-	memcpy(filename, file, i);
+	if ((argument_flags & STDOUT_FL) != STDOUT_FL){
+		memcpy(final, out_filename_ptr, j-4);
+		memcpy((final+j-4), "_", 1);
+		memcpy((final+j+1-4), file, i); 
+	} else {
+		memcpy(final, file, i);
+	}
+//		memcpy(filename, file, i);
 	FILE *desc_file = open_file(final, "w+");
 	Enum_Type *ptr = Enum;
 	// loop through all Enums
@@ -918,7 +922,8 @@ char *extract_line(char *lines, char **updated_offset){
 void write_out_frames_new(void *Object, int num, char feedback_char, unsigned int overall_lines){
 	if (feedback_char != '\0')printf("%c", feedback_char);
 	int i = 0;
-	if (((argument_flags & (OU_F_FLAG | ZIGB_FLAG)) == (OU_F_FLAG | ZIGB_FLAG))){
+	if ( (  (argument_flags & (OU_F_FLAG | ZIGB_FLAG))    == (OU_F_FLAG | ZIGB_FLAG) ) ||
+		((argument_flags & (STDOUT_FL | ZIGB_FLAG))==(STDOUT_FL | ZIGB_FLAG) )){
 		ZigBee_Frame **frames = (ZigBee_Frame**)Object;
 		if (Object == 0x00){ free(Object); return;}
 		//ZigBee_Frame *frames = (ZigBee_Frame*)Object;
@@ -926,21 +931,29 @@ void write_out_frames_new(void *Object, int num, char feedback_char, unsigned in
 		//int *addr = (int*)*arr_addr;
 		//unsigned int *addr = (int*)*arr_addr;
 		char frame_size = sizeof(ZigBee_Frame)-1; // -1 because of structure padding
-		FILE *out_file = open_file(out_filename_ptr, "r+b");
-		fseek(out_file, 0, SEEK_END);
+		FILE *out_file;
+		if ((STDOUT_FL & argument_flags) == STDOUT_FL){ 
+			out_file = stdout; 
+		} else {
+			out_file = open_file(out_filename_ptr, "r+b"); 
+			fseek(out_file, 0, SEEK_END);
+		}
+//		fseek(out_file, 0, SEEK_END);
 		while(i < num){
 			//ZigBee_Frame *frame_ptr = (ZigBee_Frame*)*frames;
 			if( frames[i]->timestamp == 0) break;
 			fwrite(&frame_size, sizeof(char), 1, out_file);
 			fwrite(frames[i++], sizeof(ZigBee_Frame)-1,1, out_file); // -1 because of structure padding
 		}
-		fseek(out_file, sizeof(int), SEEK_SET);
-		int write_processed = 0;
-		fread(&write_processed, sizeof(int), 1, out_file);
-		write_processed += i;
-		fseek(out_file, sizeof(int), SEEK_SET);
-		fwrite(&write_processed, sizeof(int), 1, out_file);
-		fclose(out_file);
+		if ((argument_flags & STDOUT_FL) != STDOUT_FL){
+			fseek(out_file, sizeof(int), SEEK_SET);
+			int write_processed = 0;
+			fread(&write_processed, sizeof(int), 1, out_file);
+			write_processed += i;
+			fseek(out_file, sizeof(int), SEEK_SET);
+			fwrite(&write_processed, sizeof(int), 1, out_file);
+			fclose(out_file);
+		}
 		i = 0;
 		while(i < num){
 			free(frames[i++]);
@@ -1499,17 +1512,20 @@ void process_wifi_file_input_live(unsigned char live_mode, char *line_buffer){
 	unsigned int filtered = 0;
 	WiFi_Frame **wifi_arr_ptr= process_wifi_lines(line_buffer, 1, &filtered);
 	if (filtered != 0xFFFFFFFF) write_out_frames_new((void*)wifi_arr_ptr, 1,'\0', line_count);
+	fflush(stdout);
         if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){write_descriptor(&Enum_Start, "protocols.csv"); write_descriptor(&WiFi_Address, "addresses.csv"); live_descriptor_write = 0;}
 }
 void process_zigbee_file_input(FILE *file, unsigned long number_of_lines){
 	char *ptr = 0;
 	unsigned int line_count = 0;
 	unsigned int filtered = 0;
-	FILE *out_file = open_file(out_filename_ptr, "w+");
-	fwrite(&Version, sizeof(int), 1, out_file);
-	fwrite(&line_count, sizeof(int), 1, out_file);
-	//fwrite(&zb_frame_len, sizeof(int), 1, out_file);
-	fclose(out_file);
+	if ((argument_flags & STDOUT_FL) != STDOUT_FL){
+		FILE *out_file = open_file(out_filename_ptr, "w+");
+		fwrite(&Version, sizeof(int), 1, out_file);
+		fwrite(&line_count, sizeof(int), 1, out_file);
+		//fwrite(&zb_frame_len, sizeof(int), 1, out_file);
+		fclose(out_file);
+	}
 
 	printf("Started processing ZigBee Input File!");
 	//
@@ -1620,6 +1636,10 @@ int main(int argc, char *argv[])
 	//load_maps();
 	unsigned short parameter_flags = argument_flagger(argc, argv);
 	load_maps();
+	if ((parameter_flags & STDOUT_FL) == STDOUT_FL){
+		in_filename_ptr = (char*) calloc(1, sizeof(char));
+		out_filename_ptr= (char*) calloc(1, sizeof(char));
+	}
 	if (((parameter_flags & HELP_FLAG) != 0)){ showHelpMessage(); return 0; }
 	if (((parameter_flags & ZIGB_FLAG) != 0) &&	//
 		((parameter_flags & IN_F_FLAG) != 0) && 
@@ -1640,15 +1660,17 @@ int main(int argc, char *argv[])
 			}
 
 	} else if (((parameter_flags & LIVE_FLAG) != 0) &&	//
-				((parameter_flags & OU_F_FLAG) != 0) &&
+				(((parameter_flags & OU_F_FLAG) != 0) || ((parameter_flags & STDOUT_FL) != 0)) &&
 				(((parameter_flags & ZIGB_FLAG) == 0) || ((parameter_flags & WIFI_FLAG) == 0))){
 
 				char *line_buffer = (char*)calloc(1024, sizeof(char));
 				unsigned int line_count = 0;
-				FILE *out_file = open_file(out_filename_ptr, "w+");
-				fwrite(&Version, sizeof(int), 1, out_file);
-				fwrite(&line_count, sizeof(int), 1, out_file);
-				fclose(out_file);
+				if ((parameter_flags & STDOUT_FL) != STDOUT_FL){
+					FILE *out_file = open_file(out_filename_ptr, "w+");
+					fwrite(&Version, sizeof(int), 1, out_file);
+					fwrite(&line_count, sizeof(int), 1, out_file);
+					fclose(out_file);
+				}
 				while(fgets(line_buffer, 1024, stdin) != NULL){
 					if (((parameter_flags & ZIGB_FLAG) == ZIGB_FLAG)){
 						//printf("\nEn - %s\n", line_buffer);

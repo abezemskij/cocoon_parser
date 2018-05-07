@@ -16,6 +16,7 @@ Usage:<br><br>
 > ./parser -**i** [file] -**o** [file] -**[wzs]**	(.csv file parsing) <br>
 > ./parser -**l** -**o** [file] -**[wzs]**		(live mode parsing, needs to be piped)<br><br>
 
+
 Help:<br><br>
 
 > **-l** - Live mode<br>
