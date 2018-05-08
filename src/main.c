@@ -580,8 +580,8 @@ unsigned char load_maps(){
 				if (*t_ptr == '\n'){ *t_ptr =0; break;}
 				t_ptr++;
 			}
-			if (argument_flags & IP_SHOR_F)enum_add_num(tt_ptr, &IP_Address, addr);
-			if (argument_flags & WIFI_FLAG)enum_add_num(tt_ptr, &WiFi_Address, addr);
+			if ((argument_flags & IP_SHOR_F) == IP_SHOR_F)enum_add_num(tt_ptr, &IP_Address, addr);
+			if ((argument_flags & WIFI_FLAG) == WIFI_FLAG)enum_add_num(tt_ptr, &WiFi_Address, addr);
 		}
 		while(fgets(buffer, sizeof(buffer), protocol_map)){
 			comma_index = 0;
@@ -597,8 +597,9 @@ unsigned char load_maps(){
                                 if (*t_ptr == '\n'){ *t_ptr =0; break;}
                                 t_ptr++;
                         }
-                        if (argument_flags & IP_SHOR_F)enum_add_num(tt_ptr, &Proto_Address, addr);
-			if (argument_flags & WIFI_FLAG)enum_add_num(tt_ptr, &Enum_Start, addr);
+                        if ((argument_flags & IP_SHOR_F) == IP_SHOR_F)enum_add_num(tt_ptr, &Proto_Address, addr);
+			if ((argument_flags & WIFI_FLAG) == WIFI_FLAG)enum_add_num(tt_ptr, &Enum_Start, addr);
+			if ((argument_flags & ZIGB_FLAG) == ZIGB_FLAG)enum_add_num(tt_ptr, &Enum_Start, addr);
 		}
 	}
 	return 0;
