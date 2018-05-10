@@ -1506,6 +1506,7 @@ void process_zigbee_file_input_live(unsigned char live_mode, char *line_buffer){
 	unsigned int filtered = 0;
 	ZigBee_Frame **zb_arr_ptr = process_zigbee_lines(line_buffer, 1, &filtered);
 	if (filtered != 0xFFFFFFFF) write_out_frames_new((void*)zb_arr_ptr, 1,'\0', line_count);
+	fflush(stdout);
 	if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){write_descriptor(&Enum_Start, "protocols.csv"); live_descriptor_write = 0;}
 }
 void process_wifi_file_input_live(unsigned char live_mode, char *line_buffer){
@@ -1513,7 +1514,6 @@ void process_wifi_file_input_live(unsigned char live_mode, char *line_buffer){
 	unsigned int filtered = 0;
 	WiFi_Frame **wifi_arr_ptr= process_wifi_lines(line_buffer, 1, &filtered);
 	if (filtered != 0xFFFFFFFF) write_out_frames_new((void*)wifi_arr_ptr, 1,'\0', line_count);
-	fflush(stdout);
         if ((filtered != 0xFFFFFFFF) && (live_descriptor_write)){write_descriptor(&Enum_Start, "protocols.csv"); write_descriptor(&WiFi_Address, "addresses.csv"); live_descriptor_write = 0;}
 }
 void process_zigbee_file_input(FILE *file, unsigned long number_of_lines){
