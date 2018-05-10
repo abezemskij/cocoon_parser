@@ -33,6 +33,7 @@ int  main(){
 			ZigBee_Frame *zb_msg = (ZigBee_Frame*)calloc(1, sizeof(ZigBee_Frame));
 			zb_msg = (ZigBee_Frame*)&zb_msg_buf[1];
 			printf("%" PRIu64 ",%04x,%04x,%d,%d,%d\n", zb_msg->timestamp, zb_msg->src_id, zb_msg->dst_id, zb_msg->packet_size, zb_msg->frame_type, zb_msg->flags);
+			fflush(stdout);
 			buf_index = 0;
 		}
 	}
