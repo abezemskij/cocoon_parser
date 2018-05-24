@@ -182,6 +182,7 @@ int main(){
 		struct OUT* out = process_line(line_buff);
 		uint64_t date = convert_date_to_epoch(out->Date);
 		printf("%" PRIu64 ",%s\n", date, out->Domain);
+		fflush(stdout);
 	}
 	return 0;
 }
