@@ -1028,11 +1028,39 @@ void write_out_frames_new(void *Object, int num, char feedback_char, unsigned in
                 while(i < num){
                         free(frames[i++]);
                 }
-	} else if (((argument_flags &(OU_F_FLAG | AUDIO_FLA)) == (OU_F_FLAG | AUDIO_FLA))){
+	} else if (((argument_flags &(OU_F_FLAG | AUDIO_FLA)) == (OU_F_FLAG | AUDIO_FLA)) ||
+			 ((argument_flags & (STDOUT_FL | AUDIO_FLA))==(STDOUT_FL | AUDIO_FLA) )){
 		unsigned char obj_size = sizeof(Audio_Frame);
                 Audio_Frame **frames = (Audio_Frame**)Object;
-                FILE *out_file = open_file(out_filename_ptr, "r+b");
-                fseek(out_file, 0, SEEK_END);
+                FILE *out_file;
+		if ((STDOUT_FL & argument_flags) == STDOUT_FL){
+                        out_file = stdout;
+                } else {
+                        out_file = open_file(out_filename_ptr, "r+b");
+                        fseek(out_file, 0, SEEK_END);
+                }
+		open_file(out_filename_ptr, "r+b");
+//                fseek(out_file, 0, SEEK_END);
+		while(i < num){
+                        //ZigBee_Frame *frame_ptr = (ZigBee_Frame*)*frames;
+                        if( frames[i]->timestamp == 0) break;
+                        fwrite(&obj_size, sizeof(char), 1, out_file);
+                        fwrite(frames[i++], sizeof(Audio_Frame),1, out_file); // -1 because of structure padding
+                }
+                if ((argument_flags & STDOUT_FL) != STDOUT_FL){
+                        fseek(out_file, sizeof(int), SEEK_SET);
+                        int write_processed = 0;
+                        fread(&write_processed, sizeof(int), 1, out_file);
+                        write_processed += i;
+                        fseek(out_file, sizeof(int), SEEK_SET);
+                        fwrite(&write_processed, sizeof(int), 1, out_file);
+                        fclose(out_file);
+                }
+                i = 0;
+                while(i < num){
+                        free(frames[i++]);
+                }
+/*
                 while(i < num){
                         fwrite(&obj_size, sizeof(char), 1, out_file);
                         if(frames[i]->timestamp == 0) break;
@@ -1052,7 +1080,8 @@ void write_out_frames_new(void *Object, int num, char feedback_char, unsigned in
                         free(frames[i++]);
                 }
 	}
-	free(Object);
+	free(Object);*/
+	}
 }
 char *return_me_not_char(char *ptr, char not_char){
 	if (*ptr == not_char){
@@ -1453,12 +1482,16 @@ Audio_Frame **process_audio_frame_lines(char *ptr, unsigned long lines, unsigned
 		while(*(start++) != ',')i++;
 		start = (char*)calloc((i+1), sizeof(char));
 		memcpy(start, line, i); // -1 removes the comma
-		audio_arr[audio_arr_i]->db = atof(start);
+//		audio_arr[audio_arr_i]->db = atof(start);
+		double abc_test = atof(start);
+		abc_test *= 1000000.0;
+		audio_arr[audio_arr_i]->timestamp = (atof(start)*(double)1000000.0);
 		free(start);
 		start = line+i+1; i = 0; // +1 because currently pointing at ,
 		while(*(start++) != ',')i++;
 		t_ptr = (char*)calloc(i+1, sizeof(char));
 		memcpy(t_ptr, (start-(1+i)), i);
+		audio_arr[audio_arr_i]->db = atof(t_ptr);
 		//start is currently at the last bit
 		tt_ptr = start;
 		i=0;
@@ -1471,11 +1504,11 @@ Audio_Frame **process_audio_frame_lines(char *ptr, unsigned long lines, unsigned
 		tt_ptr = t_ptr;
 		while(*tt_ptr++ != '\0') z++;
 		start = (char*)calloc(z+i+1+12, sizeof(char)); // Why 3? Why not I would say )) 
-		sprintf(start, "1 %s %s.000000  a",t_ptr, test);
-		audio_arr[audio_arr_i]->timestamp = convert_date_to_epoch(start);
-		memcpy(start, t_ptr, z);
-		memcpy(start+z, " ", 1); // add space
-		memcpy(start+z+1, test, i);
+//		sprintf(start, "1 %s %s.000000  a",t_ptr, test);
+//		audio_arr[audio_arr_i]->timestamp = convert_date_to_epoch(start);
+//		memcpy(start, t_ptr, z);
+//		memcpy(start+z, " ", 1); // add space
+//		memcpy(start+z+1, test, i);
 		free(start);
 		free(test);
 		free(t_ptr);
@@ -1642,7 +1675,7 @@ int main(int argc, char *argv[])
 		out_filename_ptr= (char*) calloc(1, sizeof(char));
 	}
 	if (((parameter_flags & HELP_FLAG) != 0)){ showHelpMessage(); return 0; }
-	if (((parameter_flags & ZIGB_FLAG) != 0) &&	//
+	if (((parameter_flags & ZIGB_FLAG) != 0) &&	// if zigbee flag & input flag & output flag
 		((parameter_flags & IN_F_FLAG) != 0) && 
 		((parameter_flags & OU_F_FLAG) != 0)){
 			FILE *in_file = open_file(in_filename_ptr, "r");
@@ -1660,7 +1693,7 @@ int main(int argc, char *argv[])
 				fclose(in_file);
 			}
 
-	} else if (((parameter_flags & LIVE_FLAG) != 0) &&	//
+	} else if (((parameter_flags & LIVE_FLAG) != 0) &&	// if live flag & (output or stdout) & not(zigbee or wifi)
 				(((parameter_flags & OU_F_FLAG) != 0) || ((parameter_flags & STDOUT_FL) != 0)) &&
 				(((parameter_flags & ZIGB_FLAG) == 0) || ((parameter_flags & WIFI_FLAG) == 0))){
 
@@ -1682,12 +1715,13 @@ int main(int argc, char *argv[])
 					} else if (((parameter_flags & IP_SHOR_F) == IP_SHOR_F)){
 						process_ip_short_input_live(LIVE_FLAG, line_buffer);
 					} else if (((parameter_flags & AUDIO_FLA) == AUDIO_FLA)){
+						printf("\n%d", sizeof(Audio_Frame));
 						process_audio_input_live(LIVE_FLAG, line_buffer);
 					}
 					line_count++;
 				}
 
-	} else if (((parameter_flags & WIFI_FLAG) != 0) &&     //
+	} else if (((parameter_flags & WIFI_FLAG) != 0) &&     // if wifi flag & input & output
                 	((parameter_flags & IN_F_FLAG) != 0) &&
                 	((parameter_flags & OU_F_FLAG) != 0)){
 

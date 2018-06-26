@@ -6,7 +6,7 @@
 #include <limits.h>
 #include "structures.h"
 
-#define INTERVAL 1//1000000 // second
+#define INTERVAL 1000000 // second
 
 typedef struct FRAME{
 	unsigned int frame_len;
@@ -484,6 +484,14 @@ double _math_avg_dev_dbl(double *array, unsigned int n){
         result = result/(n-1);
         return result;
 }
+int _math_count_threshold(double *array, unsigned int n, double threshold){
+	int result = 0;
+	unsigned int i = 0;
+	while (i < n){
+		if (array[i++] > threshold) result++;
+	}
+	return result;
+}
 void process_audio(SLOT *slot){
         unsigned int i = 0;
         double avg = 0.0;
@@ -506,9 +514,11 @@ void process_audio(SLOT *slot){
 		if (isnan(stdev)) stdev = 0.0;
 		double min = 0.0;
 		double max = 0.0;
+		int freq = _math_count_threshold(val_array, i, 0.9);
 		_math_minmax_dbl(val_array, i, &min, &max);
-		printf("%" PRIu64 ",%04x,%04x,555,%d,%f,%f,%f,%f,%f\n", slot->slot_stop_time,
-			1, 1, i, avg, stdev, avg_dev, min, max);
+//		printf("%" PRIu64 ",%04x,%04x,555,%d,%f,%f,%f,%f,%f\n", slot->slot_stop_time,
+//			1, 1, i, avg, stdev, avg_dev, min, max);
+		printf("%" PRIu64 ",%f,%f,%f,%f,%d\n", slot->slot_stop_time, avg, min, max, stdev, freq);
 		avg = 0.0;
 		stdev = 0.0;
 		avg_dev = 0.0;
