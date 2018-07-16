@@ -1,7 +1,7 @@
 #include "argread.h"
 
 unsigned short extract_flag(char *arg, unsigned short argument_flags, char *in_filename_ptr, char *out_filename_ptr){
-        unsigned short args = 0;
+        unsigned short args = argument_flags;
         if(strcmp(arg, "-l") == 0){
                 args |= LIVE_FLAG;
         } else if (strcmp(arg, "-i") == 0){
@@ -23,14 +23,14 @@ unsigned short extract_flag(char *arg, unsigned short argument_flags, char *in_f
         } else if (strcmp(arg, "-t") == 0){
                 args |= STDOUT_FL;
         } else {
-                if (args & PARAMETERF){
+                if ((args & PARAMETERF) != 0){
                         if (((args & IN_F_FLAG) != 0)){
                                 char *t = arg;
                                 unsigned char i = 0;
                                 while(*(t++) != 0)i++; // get length of the string
 //                                in_filename_ptr = (char*)calloc(i+1, sizeof(char)); // clear the allocated memory
                                 memcpy(in_filename_ptr, arg, i);
-                                args ^= PARAMETERF; return args;
+                                args ^= PARAMETERF; args ^= IN_F_FLAG; return args;
                         }
                         if (((args & OU_F_FLAG) != 0)){
                                 char *t = arg;
@@ -38,7 +38,7 @@ unsigned short extract_flag(char *arg, unsigned short argument_flags, char *in_f
                                 while(*(t++) != 0)i++; // get length of the string
 //                                out_filename_ptr = (char*)calloc(i+1, sizeof(char)); // clear the allocated memory
                                 memcpy(out_filename_ptr, arg, i);
-                                args ^= PARAMETERF; return args;
+                                args ^= PARAMETERF; args ^= OU_F_FLAG; return args;
                         }
                 }
         }
@@ -51,11 +51,12 @@ unsigned short argument_flagger(int argc, char** argv, unsigned short argument_f
 	unsigned short local_args = argument_flags;
         if (argc > 1){
                 while(--argc){
-                        local_args |= extract_flag(argv[i], local_args, in_file, out_file);
+                        local_args = extract_flag(argv[i], local_args, in_file, out_file);
                         i++;
                         if (local_args & HELP_FLAG) break; // if help is set then break the loop and show help
+			argument_flags |= local_args;
                 }
         }
-        return local_args;
+        return argument_flags;
 }
 

@@ -76,8 +76,8 @@ int main(int argc, char *argv[])
 				uint64_t lines = get_number_of_lines(in_file, line_offsets, line_offset_index);
 				fseek(in_file, 0, SEEK_SET);
 				//char *test = extract_n_lines(in_file, line_p_session, 0);
-//				process_zigbee_file_input(in_file, lines);
-				//process_zigbee_file_input_live(LIVE_FLAG, line_buffer);
+				//process_zigbee_file_input(in_file, lines);
+				//process_zigbee_file_input_live(LIVE_FLAG, line_buffer, out_filename_ptr, argument_flags, argv, Enumerator_Addr);
 				printf("Was able to open file!\nAllocs: %lu Freed: %lu\n", mlk_alloc, mlk_free);
 				fclose(in_file);
 			}
