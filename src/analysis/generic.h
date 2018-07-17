@@ -10,10 +10,13 @@ typedef struct SOURCE_ENUM{
 typedef struct GLOBAL_KNOWLEDGE{
 	SOURCE_ENUM	*Global_Sources;
 	SOURCE_ENUM	*Global_Destinations;
-	SOURCE_ENUM	*Global_Frames;
+	SOURCE_ENUM	*Global_Frames;	// discontinued, remove later
+	SOURCE_ENUM	*Types;
+	SOURCE_ENUM	*SubTypes;
 }GLOBAL_KNOWLEDGE;
 
 GLOBAL_KNOWLEDGE *global_knowledge_init();
+void global_knowledge_free(GLOBAL_KNOWLEDGE *_glob);
 
 #define _ANALYSIS_GENERIC_
 #endif

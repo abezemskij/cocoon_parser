@@ -62,6 +62,18 @@ unsigned short enum_add_num(char *name, Enum_Type *Enum, unsigned short frame_id
         }
         return frame_type_id;
 }
+char* enum_find_frame_name(unsigned short id, Enum_Type *Enum){
+        Enum_Type *pkt_ptr = Enum;
+        char *res = 0x0000;
+        unsigned char length = 0;
+        do{
+                if (pkt_ptr->name != 0x00){
+                        if(pkt_ptr->frame_type == id){ res = pkt_ptr->name; break;}
+                        if(pkt_ptr->name != 0x00) pkt_ptr = pkt_ptr->next;
+                }
+        }while(pkt_ptr->name != 0x00);
+        return res;
+}
 
 unsigned short enum_find_frame_type(char *name, Enum_Type *Enum){
         Enum_Type *pkt_ptr = Enum;

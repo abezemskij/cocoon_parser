@@ -4,6 +4,7 @@
 #include "int_ipshort.h"
 #include "int_wifi.h"
 #include "int_zbee.h"
+#include "slot_wrap.h"
 
 #define FILENAME_BUFFER 128
 
@@ -59,6 +60,8 @@ int main(int argc, char *argv[])
 	argument_flags = argument_flagger(argc, argv, argument_flags, in_filename_ptr, out_filename_ptr);
 	//load_maps();
 	load_maps(argument_flags, Enumerator_Addr, argv[0]);
+	unsigned char active_slot = 0;
+	SLOT *slot = slot_init();
 	if ((argument_flags & STDOUT_FL) == STDOUT_FL){
 		in_filename_ptr = (char*) calloc(1, sizeof(char));
 		out_filename_ptr= (char*) calloc(1, sizeof(char));
@@ -100,7 +103,10 @@ int main(int argc, char *argv[])
 						process_zigbee_file_input_live(LIVE_FLAG, line_buffer, out_filename_ptr, argument_flags, argv[0], Enumerator_Addr);
 
 					} else if (((argument_flags & WIFI_FLAG) == WIFI_FLAG)){
-						process_wifi_file_input_live(LIVE_FLAG, line_buffer, out_filename_ptr, argument_flags, argv[0], Enumerator_Addr, Enumerator_Proto);
+						//process_wifi_file_input_live(LIVE_FLAG, line_buffer, out_filename_ptr, argument_flags, argv[0], Enumerator_Addr, Enumerator_Proto);
+							wifi_struct_internal *test_wifi = (wifi_struct_internal*)calloc(1, sizeof(wifi_struct_internal));
+							pro_wifi_int(line_buffer, test_wifi, Enumerator_Addr);
+							analyse_slot_add(slot, (void*)test_wifi, sizeof(wifi_struct_internal), 1);
 					} else if (((argument_flags & IP_SHOR_F) == IP_SHOR_F)){
 						process_ip_short_input_live(LIVE_FLAG, line_buffer, out_filename_ptr, argument_flags, argv[0], Enumerator_Addr, Enumerator_Proto);
 					} else if (((argument_flags & AUDIO_FLA) == AUDIO_FLA)){

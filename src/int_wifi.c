@@ -1,5 +1,65 @@
 #include "int_wifi.h"
 
+void free_wifi_struct(wifi_struct_internal *wifi_frm){
+//	free(wifi_frm->src_mac);
+//	free(wifi_frm->dst_mac);
+}
+
+void pro_wifi_int(char *line, wifi_struct_internal *wifi_frm, Enum_Type *Enumerator_Addr){
+	// process one line
+	// in:	1529703131.189647282,70:56:81:88:e2:59,8c:0d:76:64:69:2d,623,2,32,-61,Evening,Friday,0
+	unsigned char i = 0;
+	char *o_ptr = line; // operating ptr
+	char *i_ptr = line; // index ptr
+
+	while(*o_ptr++ != ',')i++;
+	i_ptr = o_ptr;
+	line[i] = 0;
+	i = 0;
+	wifi_frm->timestamp = (atof(line)*(double)1000000.0); // gen timestamp ms precision
+
+	while(*o_ptr++ != ',')i++;
+	i_ptr[i] = 0;
+	wifi_frm->src_mac = enum_find_frame_type(i_ptr, Enumerator_Addr);
+	if (wifi_frm->src_mac == 0xFFFF){ // not found
+                wifi_frm->src_mac = enum_add(i_ptr, Enumerator_Addr);
+        }
+	i_ptr = o_ptr;
+	i = 0;
+
+	while(*o_ptr++ != ',')i++;
+	i_ptr[i] = 0;
+	wifi_frm->dst_mac = enum_find_frame_type(i_ptr, Enumerator_Addr);
+	if (wifi_frm->dst_mac == 0xFFFF){ // not found
+        	wifi_frm->dst_mac = enum_add(i_ptr, Enumerator_Addr);
+        }
+	i_ptr = o_ptr;
+	i = 0;
+
+	while(*o_ptr++ != ',')i++;	//len
+	i_ptr[i] = 0;
+	wifi_frm->len = atoi(i_ptr);
+	i_ptr = o_ptr; i = 0;
+
+	while(*o_ptr++ != ',')i++;	// type
+	i_ptr[i] = 0;
+	wifi_frm->type = atoi(i_ptr);
+	i_ptr = o_ptr; i = 0;
+
+	while(*o_ptr++ != ',')i++;	// subtype
+	i_ptr[i] = 0;
+	wifi_frm->subtype = atoi(i_ptr);
+	i_ptr = o_ptr; i = 0;
+
+	while(*o_ptr++ != ','){
+		if ((*o_ptr == '\n') || (*o_ptr == 0)) break;
+		i++;
+	}	// rssi last/end/cut
+	i_ptr[i] = 0;
+	wifi_frm->rssi = atoi(i_ptr);
+	i_ptr = o_ptr; i = 0;
+}
+
 void process_wifi_frame(char *line, WiFi_Frame *wifi_frm, Enum_Type *Enumerator_Addr, Enum_Type *Enumerator_Proto){
         // use int to store src and dst
         char *t_ptr = line;
