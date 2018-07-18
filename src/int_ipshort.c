@@ -1,5 +1,72 @@
 #include "int_ipshort.h"
 
+
+
+void pro_short_int(char *line, ip_struct_internal *ip_frm, Enum_Type *Enumerator_Addr){
+	// process one line
+	// in:	1529703122,192.168.1.200,224.0.0.251,445,255,17,5353,5353[\r\n\0,Evening]
+	unsigned char i = 0;
+	char *o_ptr = line; // operating ptr
+	char *i_ptr = line; // index ptr
+
+	while(*o_ptr++ != ',')i++;
+	i_ptr = o_ptr;
+	line[i] = 0;
+	i = 0;
+	ip_frm->timestamp = (atof(line)*(double)1000000.0);// // gen timestamp ms precision
+
+	while(*o_ptr++ != ',')i++;
+	i_ptr[i] = 0;
+	// validate ip
+	// if strncmp(i_ptr, "10.", 3); // Class A
+	// Class B is trickier, if strncmp(i_ptr, "172.", 3){ atoi the second byte, if (result >= 16 && result <= 31) ip == class b } else { public }
+	// Class C if (strncmp(i_ptr, "192.168."); // Class C
+	ip_frm->src_ip = enum_find_frame_type(i_ptr, Enumerator_Addr);
+	if (ip_frm->src_ip == 0xFFFF){ // not found
+                ip_frm->src_ip = enum_add(i_ptr, Enumerator_Addr);
+        }
+	i_ptr = o_ptr;
+	i = 0;
+
+	while(*o_ptr++ != ',')i++;
+	i_ptr[i] = 0;
+	ip_frm->dst_ip = enum_find_frame_type(i_ptr, Enumerator_Addr);
+	if (ip_frm->dst_ip == 0xFFFF){ // not found
+        	ip_frm->dst_ip = enum_add(i_ptr, Enumerator_Addr);
+        }
+	i_ptr = o_ptr;
+	i = 0;
+
+	while(*o_ptr++ != ',')i++;	//len
+	i_ptr[i] = 0;
+	ip_frm->len = atoi(i_ptr);
+	i_ptr = o_ptr; i = 0;
+
+	while(*o_ptr++ != ',')i++;	// ttl
+	i_ptr[i] = 0;
+	ip_frm->ttl = atoi(i_ptr);
+	i_ptr = o_ptr; i = 0;
+
+	while(*o_ptr++ != ',')i++;	// protocol
+	i_ptr[i] = 0;
+	ip_frm->protocol = atoi(i_ptr);
+	i_ptr = o_ptr; i = 0;
+	
+
+	while(*o_ptr++ != ',')i++;	// protocol
+	i_ptr[i] = 0;
+	ip_frm->src_port = atoi(i_ptr);
+	i_ptr = o_ptr; i = 0;
+
+	while(*o_ptr++ != ','){
+		if ((*o_ptr == '\n') || (*o_ptr == 0)) break;
+		i++;
+	}	// rssi last/end/cut
+	i_ptr[i] = 0;
+	ip_frm->dst_port = atoi(i_ptr);
+	i_ptr = o_ptr; i = 0;
+}
+
 void process_ip_frame(char *line, IP_Frame *ip_frm, Enum_Type *Enumerator_Addr, Enum_Type *Enumerator_Proto){
         // 31541 2017-11-24 15:17:40.826158 23.215.61.90 -> 192.168.1.3  HTTP 314
         char *t_ptr = line;
