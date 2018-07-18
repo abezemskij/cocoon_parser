@@ -1,6 +1,6 @@
 // Header file for maths functions
 #ifndef _ANALYSIS_MATHS_
-//#include <stdlib.h>
+#include <stdlib.h>
 #include <inttypes.h>
 //#include <stdint.h>
 #include <limits.h>

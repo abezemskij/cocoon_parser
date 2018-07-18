@@ -107,6 +107,93 @@ void pro_zbee(SLOT *slot, GLOBAL_KNOWLEDGE *glob){
         i = 0;
 }
 
+int cmp(const void *a, const void *b){
+	return ( *(int*)a - *(int*)b );
+}
+
+void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
+	unsigned int i = 0;
+	unsigned int k = 0;
+	unsigned int j = 0;
+	unsigned int l = 0;
+	unsigned int x = 0;
+
+	unsigned char flag = 0;
+	unsigned int freq = 0;
+	double avg = 0.0;
+	double std = 0.0;
+	unsigned int min = 0;
+	unsigned int max = 0;
+	double avg_dev = 0.0;
+	double avg_lat = 0.0;
+	double std_lat = 0.0;
+	unsigned int  min_lat = 0.0;
+	unsigned int  max_lat = 0.0;
+
+	while(i < glob->Global_SubTypes->n){	// for each subtype
+		while(k < glob->Global_Types->n){ // for each type
+			while(j < glob->Global_Sources->n){ // for every source
+				while(l < glob->Global_Destinations->n){ // for every destination
+					FRAME *_frame = slot->frame_array;
+					unsigned int *val_array = (unsigned int*)calloc(slot->n, sizeof(int)); // worst case scenario
+					uint64_t *dif_array = (uint64_t*)calloc(slot->n, sizeof(uint64_t));
+					x = 0;
+					while(x < slot->n){ // for every packet in slot
+						wifi_struct_internal *frm = (wifi_struct_internal*)_frame->frame_ptr;
+						if (frm->subtype == (glob->Global_SubTypes->array[i])) flag = 1;
+						if (flag == 1){
+							if ( (glob->Global_Types->array[k] == frm->type) && (glob->Global_Sources->array[j] == frm->src_mac) && (glob->Global_Destinations->array[l] == frm->dst_mac) ){
+								dif_array[freq] = frm->timestamp;
+								val_array[freq] = frm->len;
+								freq++;
+							}
+						}
+
+						_frame = _frame->next;
+						flag = 0;
+						x++;
+					}
+					unsigned int *latency_array = 0;
+					if (freq > 1){
+					if (freq > 1) latency_array = _math_generate_latency_array(dif_array, freq);
+					if (latency_array != 0){
+						qsort(latency_array, freq-1, sizeof(int), cmp);
+						avg_lat = _math_average(latency_array, freq-1);
+						std_lat = _math_stdev(_math_variance(latency_array, avg, freq-1));
+						_math_minmax(latency_array, freq-1, &min_lat, &max_lat);
+					}
+					
+					avg = _math_average(val_array, freq);
+					std = _math_stdev(_math_variance(val_array, avg, freq));
+					avg_dev = _math_avg_dev(val_array, freq);
+
+					if (isnan(avg_dev)) avg_dev= 0.0;
+					if (isnan(std)) std = 0.0;
+					_math_minmax(val_array, freq, &min, &max);
+					// output
+					char *src_mac = enum_find_frame_name(glob->Global_Sources->array[j], Enumerator);
+					char *dst_mac = enum_find_frame_name(glob->Global_Destinations->array[l], Enumerator);
+					printf("%" PRIu64 ",%s,%s,%d,%d,%d,%.5f,%d,%d,%.5f,%.5f,%d,%d,%.5f\n", slot->slot_stop_time, src_mac, dst_mac, freq, glob->Global_Types->array[k], glob->Global_SubTypes->array[i], avg, min, max, std, avg_lat, min_lat, max_lat, std_lat);
+					// clear variables
+					freq = 0; avg = 0; std = 0; flag = 0; min = 0; max = 0; avg_lat = 0; std_lat = 0; min_lat = 0; max_lat = 0; avg_dev = 0; x = 0;
+					free(dif_array);
+					free(latency_array);
+					free(val_array);
+					}
+					l++;
+				}
+				l = 0;
+				j++;
+			}
+			j = 0;
+			k++;
+		}
+		k = 0;
+		i++;
+	}
+	i = 0;
+
+}
 void pro_wifi(SLOT *slot, GLOBAL_KNOWLEDGE *glob){
         unsigned int i = 0;
         unsigned int k = 0;

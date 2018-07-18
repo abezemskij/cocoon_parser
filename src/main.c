@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
 						//process_wifi_file_input_live(LIVE_FLAG, line_buffer, out_filename_ptr, argument_flags, argv[0], Enumerator_Addr, Enumerator_Proto);
 							wifi_struct_internal *test_wifi = (wifi_struct_internal*)calloc(1, sizeof(wifi_struct_internal));
 							pro_wifi_int(line_buffer, test_wifi, Enumerator_Addr);
-							analyse_slot_add(slot, (void*)test_wifi, sizeof(wifi_struct_internal), 1);
+							analyse_slot_add(slot, (void*)test_wifi, sizeof(wifi_struct_internal), 1, Enumerator_Addr);
 					} else if (((argument_flags & IP_SHOR_F) == IP_SHOR_F)){
 						process_ip_short_input_live(LIVE_FLAG, line_buffer, out_filename_ptr, argument_flags, argv[0], Enumerator_Addr, Enumerator_Proto);
 					} else if (((argument_flags & AUDIO_FLA) == AUDIO_FLA)){

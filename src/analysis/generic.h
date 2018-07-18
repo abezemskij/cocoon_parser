@@ -11,8 +11,8 @@ typedef struct GLOBAL_KNOWLEDGE{
 	SOURCE_ENUM	*Global_Sources;
 	SOURCE_ENUM	*Global_Destinations;
 	SOURCE_ENUM	*Global_Frames;	// discontinued, remove later
-	SOURCE_ENUM	*Types;
-	SOURCE_ENUM	*SubTypes;
+	SOURCE_ENUM	*Global_Types;
+	SOURCE_ENUM	*Global_SubTypes;
 }GLOBAL_KNOWLEDGE;
 
 GLOBAL_KNOWLEDGE *global_knowledge_init();

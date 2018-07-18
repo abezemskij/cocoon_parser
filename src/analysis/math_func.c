@@ -101,10 +101,12 @@ int _math_count_threshold(double *array, unsigned int n, double threshold){
         return result;
 }
 unsigned int* _math_generate_latency_array(uint64_t *array, unsigned int n){
-	unsigned int *result = 0;
+	unsigned int *result = (unsigned int *)calloc(n, sizeof(int));
 	unsigned int i = 1;
 	while(i < n){
-		result[i-1] = array[i-1] - array[i];
+		uint64_t _t = (array[i] - array[i-1]);
+		result[i-1] = (unsigned int)_t;
+		i++;
 	}
 	return result;
 }
