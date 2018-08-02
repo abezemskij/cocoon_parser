@@ -65,7 +65,7 @@ void pro_short_int(char *line, ip_struct_internal *ip_frm, Enum_Type *Enumerator
 		if (ip_frm->dst_ip == 0xFFFF) ip_frm->dst_ip = enum_add(mcast_str, Enumerator_Addr);
 	} else if (dec == 255){ // broadcast (assumes 255.255.255.255) not subnet bcast
 		ip_frm->dst_ip = enum_find_frame_type(bcast_str, Enumerator_Addr);
-		if (ip_frm->dst_ip == 0xFFFF) ip_frm->dst_ip = enum_add(mcast_str, Enumerator_Addr);
+		if (ip_frm->dst_ip == 0xFFFF) ip_frm->dst_ip = enum_add(bcast_str, Enumerator_Addr);
 
 	} else {	 // Any other IP address
 		i_ptr[temp_i] = '.';

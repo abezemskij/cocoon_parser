@@ -241,9 +241,13 @@ void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 	min_sz = 0; min_ttl = 0; min_lat = 0; max_sz = 0; max_ttl = 0; max_lat = 0;
 
 	while(i < glob->Global_Sources->n){	// for each source ip
+		k = 0;
 		while(k < glob->Global_Destinations->n){ // for each destination ip
+			j = 0;
 			while(j < glob->Global_Types->n){	// for each protocol
+				l = 0;
 				while(l < glob->Global_SubTypes->n){ // for each src port
+					x = 0;
 					while(x < glob->Global_ExtTypes->n){ // for each dst port
 						FRAME *_frame = slot->frame_array;
 						unsigned int *len_array = (unsigned int*)calloc(slot->n, sizeof(int)); // worst case scenario
@@ -290,7 +294,7 @@ void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 							_math_minmax(ttl_array, freq, &min_ttl, &max_ttl);
 
 							char *src_name = enum_find_frame_name(glob->Global_Sources->array[j], Enumerator);
-							char *dst_name = enum_find_frame_name(glob->Global_Destinations->array[l], Enumerator);
+							char *dst_name = enum_find_frame_name(glob->Global_Destinations->array[k], Enumerator);
 							
 							printf("%" PRIu64 ",%s,%s,%d,%d,%d,%d,%.2f,%d,%d,%.2f,%.2f,%d,%d,%.2f,%.2f,%d,%d,%.2f\n",
 							slot->slot_stop_time, src_name, dst_name,
@@ -311,7 +315,11 @@ void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 							 );
 						} else if (freq == 1){
 							char *src_name = enum_find_frame_name(glob->Global_Sources->array[j], Enumerator);
-							char *dst_name = enum_find_frame_name(glob->Global_Destinations->array[l], Enumerator);
+							char *dst_name = enum_find_frame_name(glob->Global_Destinations->array[k], Enumerator);
+
+							_math_minmax(len_array, freq, &min_sz, &max_sz); avg_sz = min_sz; std_sz = 0; // one packet: avg = min = max, std = inf
+							_math_minmax(ttl_array, freq, &min_ttl, &max_ttl); avg_ttl = min_ttl; std_ttl = 0;
+							avg_lat = 0.0; std_lat = 0.0; min_lat = 0; max_lat = 0;
 
 							printf("%" PRIu64 ",%s,%s,%d,%d,%d,%d,%.2f,%d,%d,%.2f,%.2f,%d,%d,%.2f,%.2f,%d,%d,%.2f\n",
 							slot->slot_stop_time, src_name, dst_name,
