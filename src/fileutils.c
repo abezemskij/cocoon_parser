@@ -166,7 +166,7 @@ char *extract_number_of_lines(FILE *file, long start_line_offset, long end_line_
         fread(ptr, sizeof(char), diff, file);
         return ptr;
 }
-
+#include <inttypes.h>
 void write_out_frames_new(void *Object, int num, char feedback_char, unsigned int overall_lines, char *out_filename_ptr, unsigned short argument_flags, char *args){
         if (feedback_char != '\0')printf("%c", feedback_char);
         int i = 0;
@@ -190,8 +190,11 @@ void write_out_frames_new(void *Object, int num, char feedback_char, unsigned in
                 while(i < num){
                         //ZigBee_Frame *frame_ptr = (ZigBee_Frame*)*frames;
                         if( frames[i]->timestamp == 0) break;
-                        fwrite(&frame_size, sizeof(char), 1, out_file);
-                        fwrite(frames[i++], sizeof(ZigBee_Frame)-1,1, out_file); // -1 because of structure padding
+                        //fwrite(&frame_size, sizeof(char), 1, out_file);
+                        //fwrite(frames[i++], sizeof(ZigBee_Frame)-1,1, out_file); // -1 because of structure padding
+			printf("%" PRIu64 ",%04x,%04x,%d,%d,%d\n", frames[i]->timestamp, frames[i]->src_id, frames[i]->dst_id, frames[i]->frame_type, frames[i]->packet_size, frames[i]->flags);
+			fflush(stdout);
+			i++;
                 }
                 if ((argument_flags & STDOUT_FL) != STDOUT_FL){
                         fseek(out_file, sizeof(int), SEEK_SET);

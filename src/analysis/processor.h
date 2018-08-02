@@ -9,6 +9,7 @@
 
 void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator);
 void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator);
+void cpu_zbee_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator);
 void pro_audio(SLOT *slot);
 void pro_zbee(SLOT *slot, GLOBAL_KNOWLEDGE *glob);
 void pro_wifi(SLOT *slot, GLOBAL_KNOWLEDGE *glob);

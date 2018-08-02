@@ -213,6 +213,142 @@ void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 
 }
 
+void cpu_zbee_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
+	unsigned int i = 0;
+	unsigned int k = 0;
+	unsigned int j = 0;
+	unsigned int l = 0;
+	unsigned int x = 0;
+	unsigned int p = 0;
+
+	unsigned char flag = 0;
+	unsigned int freq = 0;
+	double avg_sz = 0.0;
+	double std_sz = 0.0;
+	double avg_ttl= 0.0;
+	double std_ttl= 0.0;
+	unsigned int min_sz = 0;
+	unsigned int max_sz = 0;
+	unsigned int min_ttl= 0;
+	unsigned int max_ttl= 0;
+	double avg_dev = 0.0;
+	double avg_lat = 0.0;
+	double std_lat = 0.0;
+	unsigned int  min_lat = 0;
+	unsigned int  max_lat = 0;
+
+	freq = 0; avg_sz = 0.0; avg_ttl = 0.0; avg_dev = 0.0; avg_lat = 0.0; std_sz = 0.0; std_ttl = 0.0; std_lat = 0.0;
+	min_sz = 0; min_ttl = 0; min_lat = 0; max_sz = 0; max_ttl = 0; max_lat = 0;
+
+	while(i < glob->Global_Sources->n){	// for each source addr
+		k = 0;
+		while(k < glob->Global_Destinations->n){ // for each destination addr
+			j = 0;
+			while(j < glob->Global_Types->n){	// for each frame type
+				FRAME *_frame = slot->frame_array;
+				unsigned int *len_array = (unsigned int*)calloc(slot->n, sizeof(int)); // worst case scenario
+				uint64_t *time_dif_array = (uint64_t*)calloc(slot->n, sizeof(uint64_t));
+				unsigned int *ttl_array = (unsigned int*)calloc(slot->n, sizeof(int));
+				p =0;
+				while(p < slot->n){ // for each packet
+					ip_struct_internal *frm = (ip_struct_internal*)_frame->frame_ptr;
+					
+					if ( (glob->Global_Types->array[j] == frm->protocol) && (glob->Global_Sources->array[i] == frm->src_ip) &&
+					     (glob->Global_Destinations->array[k] == frm->dst_ip) && (glob->Global_SubTypes->array[l] == frm->src_port) && 
+					     (glob->Global_ExtTypes->array[x] == frm->dst_port)){
+							time_dif_array[freq] = frm->timestamp;
+							len_array[freq] = frm->len;
+							ttl_array[freq] = frm->ttl;
+							freq++;
+					}
+					_frame = _frame->next;
+					p++;
+				}	
+				if (freq > 1){
+					// calculate latency
+					unsigned int *latency_array = 0;
+					latency_array = _math_generate_latency_array(time_dif_array, freq);
+					if (latency_array != 0){
+						qsort(latency_array, freq-1, sizeof(int), cmp);
+						avg_lat = _math_average(latency_array, freq-1);
+						std_lat = _math_stdev(_math_variance(latency_array, avg_lat, freq-1));
+						_math_minmax(latency_array, freq-1, &min_lat, &max_lat);
+						if (isnan(std_lat)) std_lat = 0.0;
+					}
+					avg_sz = _math_average(len_array, freq);
+					avg_ttl= _math_average(ttl_array, freq);
+					std_sz = _math_stdev(_math_variance(len_array, avg_sz, freq));
+					std_ttl= _math_stdev(_math_variance(len_array, avg_ttl, freq));
+					avg_dev = _math_avg_dev(len_array, freq);
+					if (isnan(avg_dev)) avg_dev= 0.0;
+					if (isnan(std_sz)) std_sz = 0.0;
+					if (isnan(std_ttl))std_ttl= 0.0;
+					_math_minmax(len_array, freq, &min_sz, &max_sz);
+					_math_minmax(ttl_array, freq, &min_ttl, &max_ttl);
+					char *src_name = enum_find_frame_name(glob->Global_Sources->array[j], Enumerator);
+					char *dst_name = enum_find_frame_name(glob->Global_Destinations->array[k], Enumerator);
+					
+					printf("%" PRIu64 ",%s,%s,%d,%d,%d,%d,%.2f,%d,%d,%.2f,%.2f,%d,%d,%.2f,%.2f,%d,%d,%.2f\n",
+					slot->slot_stop_time, src_name, dst_name,
+					// protocol
+					glob->Global_Types->array[j],
+					// src port
+					glob->Global_SubTypes->array[l],
+					// dst port
+					glob->Global_ExtTypes->array[x],
+					// freq
+					freq,
+					// ttl
+					avg_ttl, min_ttl, max_ttl, std_ttl,
+					// size
+					avg_sz, min_sz, max_sz, std_sz,
+					// latency
+					avg_lat, min_lat, max_lat, std_lat
+					 );
+				} else if (freq == 1){
+					char *src_name = enum_find_frame_name(glob->Global_Sources->array[j], Enumerator);
+					char *dst_name = enum_find_frame_name(glob->Global_Destinations->array[k], Enumerator);
+					_math_minmax(len_array, freq, &min_sz, &max_sz); avg_sz = min_sz; std_sz = 0; // one packet: avg = min = max, std = inf
+					_math_minmax(ttl_array, freq, &min_ttl, &max_ttl); avg_ttl = min_ttl; std_ttl = 0;
+					avg_lat = 0.0; std_lat = 0.0; min_lat = 0; max_lat = 0;
+
+					printf("%" PRIu64 ",%s,%s,%d,%d,%d,%d,%.2f,%d,%d,%.2f,%.2f,%d,%d,%.2f,%.2f,%d,%d,%.2f\n",
+					slot->slot_stop_time, src_name, dst_name,
+					// protocol
+					glob->Global_Types->array[j],
+					// src port
+					glob->Global_SubTypes->array[l],
+					// dst port
+					glob->Global_ExtTypes->array[x],
+					// freq
+					freq,
+					// ttl
+					avg_ttl, min_ttl, max_ttl, std_ttl,
+					// size
+					avg_sz, min_sz, max_sz, std_sz,
+					// latency
+					avg_lat, min_lat, max_lat, std_lat
+					 );
+				} else if (freq == 0){
+					//printf("0");
+					printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time); // possibly needs to move in to an if statement
+				} else {
+					printf("invalid case in processor.h freq is negative !!!");		
+				}
+				freq = 0; avg_sz = 0.0; avg_ttl = 0.0; avg_dev = 0.0; avg_lat = 0.0; std_sz = 0.0; std_ttl = 0.0; std_lat = 0.0;
+				min_sz = 0; min_ttl = 0; min_lat = 0; max_sz = 0; max_ttl = 0; max_lat = 0; 
+				j++;
+			}
+			k++;
+		}
+		i++;
+	}
+	if (i == 0){
+		// no packets were sent
+		printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time); // possibly needs to move in to an if statement
+	}
+}
+
 void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 	unsigned int i = 0;
 	unsigned int k = 0;
@@ -340,6 +476,7 @@ void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 							 );
 						} else if (freq == 0){
 							//printf("0");
+							printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time); // possibly needs to move in to an if statement
 						} else {
 							printf("invalid case in processor.h freq is negative !!!");		
 						}
@@ -355,100 +492,10 @@ void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 		}
 		i++;
 	}
-		/*while(k < glob->Global_Types->n){ // protocol for each
-			while(j < glob->Global_Sources->n){ // for every source
-				while(l < glob->Global_Destinations->n){ // for every destination
-					FRAME *_frame = slot->frame_array;
-					unsigned int *val_array = (unsigned int*)calloc(slot->n, sizeof(int)); // worst case scenario
-					uint64_t *dif_array = (uint64_t*)calloc(slot->n, sizeof(uint64_t));
-					unsigned int *ttl_array = (unsigned int*)calloc(slot->n, sizeof(int));
-					x = 0;
-					while(x < slot->n){ // for every packet in slot
-						ip_struct_internal *frm = (ip_struct_internal*)_frame->frame_ptr;
-						if (frm->protocol == (glob->Global_Types->array[i])) flag = 1;
-						if (flag == 1){
-							if ( (glob->Global_Types->array[k] == frm->protocol) && (glob->Global_Sources->array[j] == frm->src_ip) && (glob->Global_Destinations->array[l] == frm->dst_ip) ){
-								dif_array[freq] = frm->timestamp;
-								val_array[freq] = frm->len;
-								ttl_array[freq] = frm->ttl
-								freq++;
-							}
-						}
-
-						_frame = _frame->next;
-						flag = 0;
-						x++;
-					}
-					unsigned int *latency_array = 0;
-					if (freq > 1){
-						if (freq > 1) latency_array = _math_generate_latency_array(dif_array, freq);
-						if (latency_array != 0){
-							qsort(latency_array, freq-1, sizeof(int), cmp);
-							avg_lat = _math_average(latency_array, freq-1);
-							std_lat = _math_stdev(_math_variance(latency_array, avg, freq-1));
-							_math_minmax(latency_array, freq-1, &min_lat, &max_lat);
-						}
-						
-						avg_sz = _math_average(val_array, freq);
-						avg_ttl= _math_avarage(ttl_array, freq);
-
-						std_sz = _math_stdev(_math_variance(val_array, avg_sz, freq));
-						std_ttl= _math_stdev(_math_variance(val_array, avg_ttl, freq));
-						avg_dev = _math_avg_dev(val_array, freq);
-
-						if (isnan(avg_dev)) avg_dev= 0.0;
-						if (isnan(std)) std = 0.0;
-						_math_minmax(val_array, freq, &min, &max);
-						// output
-						char *src_mac = enum_find_frame_name(glob->Global_Sources->array[j], Enumerator);
-						char *dst_mac = enum_find_frame_name(glob->Global_Destinations->array[l], Enumerator);
-
-						printf("%" PRIu64 ",%s,%s,%d,%d,%d,%.5f,%d,%d,%.5f,%.5f,%d,%d,%.5f\n", 
-							slot->slot_stop_time, src_mac, dst_mac,
-							// protocol
-							glob->Global_Types->array[k],
-							// src port
-							
-							// dst port
-							// freq
-							// ttl
-							// size
-							// latency
-							 );
-						// clear variables
-						freq = 0; avg = 0; std = 0; flag = 0; min = 0; max = 0; avg_lat = 0; std_lat = 0; min_lat = 0; max_lat = 0; avg_dev = 0; x = 0;
-						free(dif_array);
-						free(latency_array);
-						free(val_array);
-					} else if (freq == 1){
-						char *src_mac = enum_find_frame_name(glob->Global_Sources->array[j], Enumerator);
-						char *dst_mac = enum_find_frame_name(glob->Global_Destinations->array[l], Enumerator);
-						freq = 0; avg = 0; std = 0; flag = 0; min = 0; max = 0; avg_lat = 0; std_lat = 0; min_lat = 0; max_lat = 0; avg_dev = 0; x = 0;
-						printf("%" PRIu64 ",%s,%s,%d,%d,%d,%.5f,%d,%d,%.5f,%.5f,%d,%d,%.5f\n", slot->slot_stop_time, src_mac, dst_mac, freq, glob->Global_Types->array[k], glob->Global_SubTypes->array[i], avg, min, max, std, avg_lat, min_lat, max_lat, std_lat);
-						free(dif_array);
-						free(latency_array);
-						free(val_array);
-						continue;
-					} else if (freq == 0){
-						char src_mac[] = "0";
-						char dst_mac[] = "0";
-						freq = 0; avg = 0; std = 0; flag = 0; min = 0; max = 0; avg_lat = 0; std_lat = 0; min_lat = 0; max_lat = 0; avg_dev = 0; x = 0;
-						printf("%" PRIu64 ",%s,%s,%d,%d,%d,%.5f,%d,%d,%.5f,%.5f,%d,%d,%.5f\n", slot->slot_stop_time, src_mac, dst_mac, freq, glob->Global_Types->array[k], glob->Global_SubTypes->array[i], avg, min, max, std, avg_lat, min_lat, max_lat, std_lat);
-						free(dif_array);
-						free(latency_array);
-						free(val_array);
-						continue;
-					}
-					l++;
-				}
-				l = 0;
-				j++;
-			}
-			j = 0;
-			k++;
-		}
-		k = 0;
-		i++;*/
+	if (i == 0){
+		// no packets were sent
+		printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time); // possibly needs to move in to an if statement
+	}
 }
 
 void pro_wifi(SLOT *slot, GLOBAL_KNOWLEDGE *glob){
