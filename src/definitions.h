@@ -21,6 +21,7 @@
 #define IP_SHOR_F  1<<8 // IP Short version
 #define AUDIO_FLA  1<<9 // Audio flag in a format of <timestamp>,<value>
 #define STDOUT_FL  1<<10 // --stout equivalent
+#define SPECT_FLA  1<<11 // 
 #define WIN_MODE   1
 #define LINE_INIT  100000 // Lines initialized
 

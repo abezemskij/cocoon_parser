@@ -4,35 +4,82 @@
 
 void pro_short_int(char *line, ip_struct_internal *ip_frm, Enum_Type *Enumerator_Addr){
 	// process one line
-	// in:	1529703122,192.168.1.200,224.0.0.251,445,255,17,5353,5353[\r\n\0,Evening]
+	// in:	1529703122.00000,192.168.1.200,224.0.0.251,445,255,17,5353,5353[\r\n\0,Evening]
+	// debug -l -s -t < ../../dataset/
 	unsigned char i = 0;
 	char *o_ptr = line; // operating ptr
 	char *i_ptr = line; // index ptr
-
+	char bcast_str[] = "broadcast";
+	char mcast_str[] = "multicast";
+	// get time
 	while(*o_ptr++ != ',')i++;
 	i_ptr = o_ptr;
 	line[i] = 0;
 	i = 0;
 	ip_frm->timestamp = (atof(line)*(double)1000000.0);// // gen timestamp ms precision
 
+	// get source
 	while(*o_ptr++ != ',')i++;
 	i_ptr[i] = 0;
+	unsigned char temp_i = 0;
+	while(i_ptr[temp_i] != '.'){ temp_i++; }
+	i_ptr[temp_i] = 0;
+	unsigned char dec = atoi(i_ptr);
+	// if value is between 224 and 239 = multicast
+	if ((dec >= 224) && (dec <= 239)){
+		// set dst as a multicast
+		ip_frm->src_ip = enum_find_frame_type(mcast_str, Enumerator_Addr);
+		if (ip_frm->src_ip == 0xFFFF) ip_frm->src_ip = enum_add(mcast_str, Enumerator_Addr);
+	} else if (dec == 255){ // broadcast (assumes 255.255.255.255) not subnet bcast
+		ip_frm->src_ip = enum_find_frame_type(bcast_str, Enumerator_Addr);
+		if (ip_frm->src_ip == 0xFFFF) ip_frm->src_ip = enum_add(mcast_str, Enumerator_Addr);
+
+	} else {	 // Any other IP address
+		i_ptr[temp_i] = '.';
+		ip_frm->src_ip = enum_find_frame_type(i_ptr, Enumerator_Addr);
+	}
+	i_ptr[temp_i] = '.';
 	// validate ip
 	// if strncmp(i_ptr, "10.", 3); // Class A
+
 	// Class B is trickier, if strncmp(i_ptr, "172.", 3){ atoi the second byte, if (result >= 16 && result <= 31) ip == class b } else { public }
 	// Class C if (strncmp(i_ptr, "192.168."); // Class C
-	ip_frm->src_ip = enum_find_frame_type(i_ptr, Enumerator_Addr);
+	i = 0;
 	if (ip_frm->src_ip == 0xFFFF){ // not found
                 ip_frm->src_ip = enum_add(i_ptr, Enumerator_Addr);
         }
 	i_ptr = o_ptr;
-	i = 0;
 
+	// get dest
 	while(*o_ptr++ != ',')i++;
 	i_ptr[i] = 0;
-	ip_frm->dst_ip = enum_find_frame_type(i_ptr, Enumerator_Addr);
+
+	temp_i = 0;
+	while(i_ptr[temp_i] != '.'){ temp_i++; }
+	i_ptr[temp_i] = 0;
+	dec = atoi(i_ptr);
+	// if value is between 224 and 239 = multicast
+	if ((dec >= 224) && (dec <= 239)){
+		// set dst as a multicast
+		ip_frm->dst_ip = enum_find_frame_type(mcast_str, Enumerator_Addr);
+		if (ip_frm->dst_ip == 0xFFFF) ip_frm->dst_ip = enum_add(mcast_str, Enumerator_Addr);
+	} else if (dec == 255){ // broadcast (assumes 255.255.255.255) not subnet bcast
+		ip_frm->dst_ip = enum_find_frame_type(bcast_str, Enumerator_Addr);
+		if (ip_frm->dst_ip == 0xFFFF) ip_frm->dst_ip = enum_add(mcast_str, Enumerator_Addr);
+
+	} else {	 // Any other IP address
+		i_ptr[temp_i] = '.';
+		ip_frm->dst_ip = enum_find_frame_type(i_ptr, Enumerator_Addr);
+	}
+	i_ptr[temp_i] = '.';
+	// validate ip
+	// if strncmp(i_ptr, "10.", 3); // Class A
+
+	// Class B is trickier, if strncmp(i_ptr, "172.", 3){ atoi the second byte, if (result >= 16 && result <= 31) ip == class b } else { public }
+	// Class C if (strncmp(i_ptr, "192.168."); // Class C
+	i = 0;
 	if (ip_frm->dst_ip == 0xFFFF){ // not found
-        	ip_frm->dst_ip = enum_add(i_ptr, Enumerator_Addr);
+                ip_frm->dst_ip = enum_add(i_ptr, Enumerator_Addr);
         }
 	i_ptr = o_ptr;
 	i = 0;
@@ -53,13 +100,13 @@ void pro_short_int(char *line, ip_struct_internal *ip_frm, Enum_Type *Enumerator
 	i_ptr = o_ptr; i = 0;
 	
 
-	while(*o_ptr++ != ',')i++;	// protocol
+	while(*o_ptr++ != ',')i++;	// source port
 	i_ptr[i] = 0;
 	ip_frm->src_port = atoi(i_ptr);
 	i_ptr = o_ptr; i = 0;
 
-	while(*o_ptr++ != ','){
-		if ((*o_ptr == '\n') || (*o_ptr == 0)) break;
+	while(*o_ptr++ != ','){		// dest port
+		if ((*o_ptr == '\n') || (*o_ptr == 0)){ i++; break;}
 		i++;
 	}	// rssi last/end/cut
 	i_ptr[i] = 0;

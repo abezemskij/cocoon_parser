@@ -25,9 +25,22 @@ void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsig
 	if (slot->n == 0){ slot->slot_start_time = time; slot->slot_stop_time = time+1000000; }//ms
 	if (time > slot->slot_stop_time){ // if current time of an object is higher then stop time i.e. exceeds
 		// process current slot
-		GLOBAL_KNOWLEDGE *_glob = perform_global_features(slot, 1); // 1 wifi
-		
-		cpu_wifi_out(slot, _glob, Enumerator);
+		GLOBAL_KNOWLEDGE *_glob;// = perform_global_features(slot, 1); // 1 wifi
+		switch(type){
+			case 1: //wifi
+				_glob = perform_global_features(slot, type);
+				cpu_wifi_out(slot, _glob, Enumerator);
+
+				break;
+			case 2: // ip
+				_glob = perform_global_features(slot, type);
+				cpu_ip_out(slot, _glob, Enumerator);
+				
+				break;
+			default:
+				printf("Defaulted in analyse slot_add (slot_wrap.c)");
+				break;
+		}
 		
 		global_knowledge_free(_glob);
 		// free the slot, taking into account types
@@ -59,15 +72,17 @@ GLOBAL_KNOWLEDGE *perform_global_features(SLOT *slot, unsigned char type){
 	unsigned int i = 0;
 	unsigned int unique_type = 0;
 	unsigned int unique_subtype = 0;
+	unsigned int unique_exttype = 0;
 	unsigned int unique_src = 0;
 	unsigned int unique_dst = 0;
 
 	unsigned short temp = 0;
 	unsigned short *type_array;
 	unsigned short *subtype_array;
+	unsigned short *exttype_array;
 	unsigned short *src_array;
 	unsigned short *dst_array;
-	
+
 	FRAME *_frame = slot->frame_array;
 
 	while(i < slot->n){ // go through all frames
@@ -154,6 +169,103 @@ GLOBAL_KNOWLEDGE *perform_global_features(SLOT *slot, unsigned char type){
 				}
 				break;
 			case 2:		// IP struct internal
+				if (_frame != 0){
+					if (unique_type == 0){	// first value	// proto
+						type_array = (unsigned short*)calloc(1, sizeof(short));
+						*type_array = ((ip_struct_internal*)_frame->frame_ptr)->protocol;
+						unique_type++;
+					} else {
+						unsigned int k = 0;
+						unsigned char found = 0;
+						while(k < unique_type){	// cycle through all unique types
+							if(type_array[k] == ((ip_struct_internal*)_frame->frame_ptr)->protocol){
+								found = 1;
+								break;
+							}
+							k++;
+						}
+						if (found != 1){	// if not found then add
+							unique_type++;
+							type_array = add_short_to_array(type_array, ((ip_struct_internal*)_frame->frame_ptr)->protocol, unique_type);
+						}
+					}
+					if (unique_subtype == 0){	// src_port
+						subtype_array = (unsigned short*)calloc(1,sizeof(short));
+						*subtype_array= ((ip_struct_internal*)_frame->frame_ptr)->src_port;
+						unique_subtype++;
+					} else {
+						unsigned int k = 0;
+						unsigned char found = 0;
+						while(k < unique_subtype){	// cycle through all unique types
+							if(subtype_array[k] == ((ip_struct_internal*)_frame->frame_ptr)->src_port){
+								found = 1;
+								break;
+							}
+							k++;
+						}
+						if (found != 1){	// if not found then add
+							unique_subtype++;
+							subtype_array = add_short_to_array(subtype_array, ((ip_struct_internal*)_frame->frame_ptr)->src_port, unique_subtype); //_new_array;
+						}
+					}
+					if (unique_exttype == 0){ 	// dst port
+						exttype_array = (unsigned short*)calloc(1,sizeof(short));
+						*exttype_array= ((ip_struct_internal*)_frame->frame_ptr)->dst_port;
+						unique_exttype++;
+					} else {
+						unsigned int k = 0;
+						unsigned char found = 0;
+						while(k < unique_exttype){	// cycle through all unique types
+							if(exttype_array[k] == ((ip_struct_internal*)_frame->frame_ptr)->dst_port){
+								found = 1;
+								break;
+							}
+							k++;
+						}
+						if (found != 1){	// if not found then add
+							unique_exttype++;
+							exttype_array = add_short_to_array(exttype_array, ((ip_struct_internal*)_frame->frame_ptr)->dst_port, unique_exttype); //_new_array;
+						}
+					}
+					if (unique_src == 0){
+						src_array = (unsigned short*)calloc(1,sizeof(short));
+						*src_array = ((ip_struct_internal*)_frame->frame_ptr)->src_ip;
+						unique_src++;
+					} else {
+						unsigned int k = 0;
+						unsigned char found = 0;
+						while(k < unique_src){	// cycle through all unique types
+							if(src_array[k] == ((ip_struct_internal*)_frame->frame_ptr)->src_ip){
+								found = 1;
+								break;
+							}
+							k++;
+						}
+						if (found != 1){	// if not found then add
+							unique_src++;
+							src_array = add_short_to_array(src_array, ((ip_struct_internal*)_frame->frame_ptr)->src_ip, unique_src);
+						}
+					}
+					if (unique_dst == 0){
+						dst_array = (unsigned short*)calloc(1,sizeof(short));
+						*dst_array= ((ip_struct_internal*)_frame->frame_ptr)->dst_ip;
+						unique_dst++;
+					} else {
+						unsigned int k = 0;
+						unsigned char found = 0;
+						while(k < unique_dst){	// cycle through all unique types
+							if(dst_array[k] == ((ip_struct_internal*)_frame->frame_ptr)->dst_ip){
+								found = 1;
+								break;
+							}
+							k++;
+						}
+						if (found != 1){	// if not found then add
+							unique_dst++;
+							dst_array = add_short_to_array(dst_array, ((ip_struct_internal*)_frame->frame_ptr)->dst_ip, unique_dst); //_new_array;
+						}
+					}
+				}
 				
 				break;
 			case 3:		// ZBee
@@ -166,11 +278,13 @@ GLOBAL_KNOWLEDGE *perform_global_features(SLOT *slot, unsigned char type){
 	}
 	_glob->Global_Types->n = unique_type;
 	_glob->Global_SubTypes->n = unique_subtype;
+	_glob->Global_ExtTypes->n = unique_exttype;
 	_glob->Global_Sources->n = unique_src;
 	_glob->Global_Destinations->n = unique_dst;
 
         _glob->Global_Types->array = type_array;
         _glob->Global_SubTypes->array = subtype_array;
+	_glob->Global_ExtTypes->array = exttype_array;
         _glob->Global_Sources->array = src_array;
         _glob->Global_Destinations->array = dst_array;
 

@@ -108,10 +108,15 @@ int main(int argc, char *argv[])
 							pro_wifi_int(line_buffer, test_wifi, Enumerator_Addr);
 							analyse_slot_add(slot, (void*)test_wifi, sizeof(wifi_struct_internal), 1, Enumerator_Addr);
 					} else if (((argument_flags & IP_SHOR_F) == IP_SHOR_F)){
-						process_ip_short_input_live(LIVE_FLAG, line_buffer, out_filename_ptr, argument_flags, argv[0], Enumerator_Addr, Enumerator_Proto);
+						ip_struct_internal *test_ip = (ip_struct_internal*)calloc(1,sizeof(ip_struct_internal));
+						pro_short_int(line_buffer, test_ip, Enumerator_Addr);
+						analyse_slot_add(slot, (void*)test_ip, sizeof(ip_struct_internal), 2, Enumerator_Addr);
+						//process_ip_short_input_live(LIVE_FLAG, line_buffer, out_filename_ptr, argument_flags, argv[0], Enumerator_Addr, Enumerator_Proto);
 					} else if (((argument_flags & AUDIO_FLA) == AUDIO_FLA)){
 //						printf("\n%d", sizeof(Audio_Frame));
 						process_audio_input_live(LIVE_FLAG, line_buffer, argv[0], argument_flags, out_filename_ptr);
+					} else if (((argument_flags & SPECT_FLA) == SPECT_FLA)){
+						// process_spectrum_input
 					}
 					line_count++;
 				}
