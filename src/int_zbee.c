@@ -33,6 +33,187 @@ void ieee_man_frames_handler(char *after_length_ptr, ZigBee_Frame *zb_object, En
         }
 }
 
+
+void zbee_ieee_handler(char *line, zbee_struct_internal *zbee_frm, Enum_Type *Enumerator){
+	unsigned int index = 14; // to point at len
+	unsigned int ind = 0;
+	// get length
+	while(line[index+ind] != ' ') ind++;
+	line[index+ind] = '\0';
+	zbee_frm->len = atoi(&line[index]);
+	line[index+ind] = ' '; index += ind+1; // compensating space
+	// classify the enumerator pkt types
+	ind = 0;
+	while(1){ ind++; if ((line[index+ind] == '\0') || (line[index+ind] == '\n') || (line[index+ind] == ',')) break;}
+	if ( (line[index+ind] == ',') ){ // check for bad fcs
+		line[index+ind] = '\0';
+		zbee_frm->pkt_type = enum_find_frame_type(&line[index], Enumerator);
+		if (zbee_frm->pkt_type == 0xFFFF){ // not found
+			zbee_frm->pkt_type = enum_add(&line[index], Enumerator);
+		}
+		line[index+ind] = ',';
+		index += ind+1;
+		if (strncmp(&line[index], "Bad FCS", 7) == 0){ // case 0xb10c → 0x1177       IEEE 802.15.4 26 Unknown Command, Bad FCS
+			zbee_frm->fcs = 1;
+		} else {
+			ind = 0;
+			while(1){
+				ind++;
+				if ( (line[index+ind] == '\0') || (line[index+ind] == '\n') ){
+					line[index+ind] = '\0';
+					if (strncmp(&line[index+ind-7], "Bad FCS", 7) == 0){
+						zbee_frm->fcs = 1;
+						break;
+					}  else if (strncmp(&line[index+ind-18], "[Malformed Packet]", 18) == 0){ //  300 2018-07-22 17:28:59.222173473              → 4d:d4:8c:f4:f5:55:55:55 IEEE 802.15.4 26 Multipurpose, Dst: 4d:d4:8c:f4:f5:55:55:55[Malformed Packet]
+						zbee_frm->fcs = 1;
+						break;
+					} else {
+						fprintf(stderr, "Unhandled complex else condition in pro_zbee_int (int_zbee.c)\nLine: %s", line);
+						break;
+					}
+				}
+			}
+		}
+	} else { // terminated with null or new line
+		line[index+ind] = '\0';
+		zbee_frm->pkt_type = enum_find_frame_type(&line[index], Enumerator);
+		if (zbee_frm->pkt_type == 0xFFFF){ // not found
+			zbee_frm->pkt_type = enum_add(&line[index], Enumerator);
+		}	
+	}
+}
+
+void zbee_zigbee_handler(char *line, zbee_struct_internal *zbee_frm, Enum_Type *Enumerator){
+	unsigned int index = 7; // to point at len
+	unsigned int ind = 0;
+	// get length
+	while(line[index+ind] != ' ') ind++;
+	line[index+ind] = '\0';
+	zbee_frm->len = atoi(&line[index]);
+	line[index+ind] = ' '; index += ind+1; // compensating space
+	// classify the enumerator pkt types
+	//  1228 2018-07-22 17:45:24.261615352       0x1c7c → Broadcast    ZigBee 64 Command, Dst: Broadcast, Src: 0x1c7c
+	ind = 0;
+	while(1){ ind++; if ((line[index+ind] == '\0') || (line[index+ind] == '\n') || (line[index+ind] == ',')) break;}
+	if ( (line[index+ind] == ',') ){ // check for bad fcs
+		line[index+ind] = '\0';
+		zbee_frm->pkt_type = enum_find_frame_type(&line[index], Enumerator);
+		if (zbee_frm->pkt_type == 0xFFFF){ // not found
+			zbee_frm->pkt_type = enum_add(&line[index], Enumerator);
+		}
+		line[index+ind] = ',';
+		index += ind+1;
+		if (strncmp(&line[index], "Bad FCS", 7) == 0){ // case 0xb10c → 0x1177       IEEE 802.15.4 26 Unknown Command, Bad FCS
+			zbee_frm->fcs = 1;
+		}
+		
+	} else { // terminated with null or new line
+		line[index+ind] = '\0';
+		zbee_frm->pkt_type = enum_find_frame_type(&line[index], Enumerator);
+		if (zbee_frm->pkt_type == 0xFFFF){ // not found
+			zbee_frm->pkt_type = enum_add(&line[index], Enumerator);
+		}	
+	}
+}
+
+void pro_zbee_int(char *line, zbee_struct_internal *zbee_frm, Enum_Type *Enumerator){
+		unsigned int index = 0;
+		unsigned int ind = 0;
+	    // extract epoch time
+		// example     1 2018-07-22 17:24:11.316703005       0xd344 → 0x0000       IEEE 802.15.4 26 Data Request
+	    if (line[index] == ' '){ while(line[index] == ' ')index++; while(line[index] != ' ')index++; index++; }// skip the number and spacing afterwards; should be in position of 2018-07...005
+		while(line[index+ind] != ' ') ind++; // skip the date
+		ind++; // compensate the space
+		while(line[index+ind] != ' ') ind++; // skip the time with seconds;
+		
+		char *timestamp = (char*)calloc(ind+1, sizeof(char));
+		memcpy(timestamp, &line[index], ind);
+		zbee_frm->timestamp = date_to_epoch(timestamp);
+		free(timestamp);
+		index = ind+index;
+	    // proceed with processing
+	    // debug r -l -z -t < ../../dataset/zb_sample.csv
+	    while(line[index] == ' ') index++; // go to 0xd344 or -> symbol
+	    if (strncmp(&line[index], "\xe2\x86\x92", 3) == 0){ // due to the formatting
+				index += 4;
+				while(line[index] == ' ') index++;
+				ind = 0;
+				
+				zbee_frm->src_id = 0xFFFF;
+				// symbol it means no source address, coming from broadcast
+				while(line[index+ind] == ' ') ind++;
+				if (((line[index+ind] == '0') && (line[index+ind+1] == 'x')) || (line[index+ind] == 'B')){
+					if ((line[index+ind] == 'B')) zbee_frm->dst_id = 0xFFFF; // Broadcast
+					// convert address or broadcast to short 
+				} else {
+					// check if IEEE
+					if (strncmp(&line[index+ind], "IEEE 802.15.4", 13) == 0){
+						// data request/ack packet or other
+						// if this has case has been captured i.e. no dst id
+						zbee_frm->dst_id = 0xFFFF;
+					} else if (strncmp(&line[index+ind], "ZigBee", 6) == 0){
+						zbee_zigbee_handler(&line[index], zbee_frm, Enumerator);
+						// process as zigbee packet
+					} else {
+						// extended packet 4d:d4:8c:f4:f5:55:55:55 IEEE 802.15.4 26 Multipurpose, Dst: 4d:d4:8c:f4:f5:55:55:55[Malformed Packet]\n"
+						while(line[index] != ' ') index++;
+						index++;
+						if (strncmp(&line[index], "IEEE 802.15.4", 13) == 0){
+							zbee_frm->dst_id = 0xFFFE;
+							zbee_ieee_handler(&line[index], zbee_frm, Enumerator);							
+						} else if (strncmp(&line[index], "ZigBee", 6) == 0){
+							zbee_frm->dst_id = 0xFFFE;
+							zbee_zigbee_handler(&line[index], zbee_frm, Enumerator);							
+						}
+						//fprintf(stderr, "Captured else condition in pro_zbee_int (int_zbee.c) (check IEEE)\n");
+					}
+				}
+				// check case → 0x0000 where 0x0000 doesn't exist
+		} else if (strncmp(&line[index], "0x", 2) == 0){ // check if legit address 
+				index += 2;
+				line[index+4] = '\0';
+				zbee_frm->src_id = (short)strtol(&line[index], NULL, 16);
+				line[index+4] = ' '; index += 5;
+				if (strncmp(&line[index], "\xe2\x86\x92", 3) == 0){ index += 4; } else { index += 2; }
+				// if there 
+				if (strncmp(&line[index], "0x", 2) == 0){
+					index += 2;
+					line[index+4] = '\0';
+					zbee_frm->dst_id = (short)strtol(&line[index], NULL, 16);
+					line[index+4] = ' '; index += 5;
+					while(line[index] == ' ') index++;
+				} else if (strncmp(&line[index], "Broadcast", 9) == 0){
+					zbee_frm->dst_id = 0xFFFF;
+					index += 9;
+					while(line[index] == ' ') index++;
+				} else {
+					while(line[index] == ' ') index++;
+					// No address found, reached IEEE/Zigbee
+					if (strncmp(&line[index], "IEEE 802.15.4", 13) == 0){
+						zbee_ieee_handler(&line[index], zbee_frm, Enumerator);
+					} else if (strncmp(&line[index], "ZigBee", 6) == 0){
+						zbee_zigbee_handler(&line[index], zbee_frm, Enumerator);
+					} else {
+						fprintf(stderr, "Unhandled else condition in pro_zbee_int (int_zbee.c)\n");
+					}
+				}
+			
+			if (strncmp(&line[index], "IEEE 802.15.4", 13) == 0){
+				zbee_ieee_handler(&line[index], zbee_frm, Enumerator);
+
+			} else if (strncmp(&line[index], "ZigBee", 6) == 0){
+				zbee_zigbee_handler(&line[index], zbee_frm, Enumerator);
+			} else {
+				fprintf(stderr, "Unhandled else condition in pro_zbee_int (int_zbee.c)\n");
+			}
+			//printf(".");
+		} else {
+			fprintf(stderr, "Captured else condition in pro_zbee_int (int_zbee.c)\n");
+		}
+	   
+	    
+}
+
 void zigb_man_frames_handler(char *after_length_ptr, ZigBee_Frame *zb_object, Enum_Type *Enumerator){
         char *t_ptr = after_length_ptr;
         while(*t_ptr != '\0'){

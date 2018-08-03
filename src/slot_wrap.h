@@ -2,6 +2,7 @@
 #ifndef _SLOT_WRAP_
 #include "./analysis/windowing.h"
 #include "int_wifi.h"
+#include "int_zbee.h"
 #include "./analysis/math_func.h"
 #include "./analysis/generic.h"
 #include "./analysis/processor.h"

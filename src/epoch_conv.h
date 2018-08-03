@@ -12,7 +12,7 @@
 
 // End of epoch time processing definitions
 
-
+uint64_t date_to_epoch(char* line);
 uint64_t convert_date_to_epoch(char* line);
 #define _EPOCH_CONV_
 #endif

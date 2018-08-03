@@ -37,6 +37,10 @@ void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsig
 				cpu_ip_out(slot, _glob, Enumerator);
 				
 				break;
+			case 3: // zigbee
+				_glob = perform_global_features(slot, type);
+				cpu_zbee_out(slot, _glob, Enumerator);
+				break;
 			default:
 				printf("Defaulted in analyse slot_add (slot_wrap.c)");
 				break;
@@ -269,7 +273,68 @@ GLOBAL_KNOWLEDGE *perform_global_features(SLOT *slot, unsigned char type){
 				
 				break;
 			case 3:		// ZBee
-				
+				if (_frame != 0){
+					if (unique_type == 0){	// first value
+						type_array = (unsigned short*)calloc(1, sizeof(short));
+						*type_array = ((zbee_struct_internal*)_frame->frame_ptr)->pkt_type;
+						unique_type++;
+					} else {
+						unsigned int k = 0;
+						unsigned char found = 0;
+						while(k < unique_type){	// cycle through all unique types
+							if(type_array[k] == ((zbee_struct_internal*)_frame->frame_ptr)->pkt_type){
+								found = 1;
+								break;
+							}
+							k++;
+						}
+						if (found != 1){	// if not found then add
+							unique_type++;
+							type_array = add_short_to_array(type_array, ((zbee_struct_internal*)_frame->frame_ptr)->pkt_type, unique_type);
+						}
+					}
+					if (unique_src == 0){
+						src_array = (unsigned short*)calloc(1,sizeof(short));
+						*src_array = ((zbee_struct_internal*)_frame->frame_ptr)->src_id;
+						unique_src++;
+					} else {
+						unsigned int k = 0;
+						unsigned char found = 0;
+						while(k < unique_src){	// cycle through all unique types
+							if(src_array[k] == ((zbee_struct_internal*)_frame->frame_ptr)->src_id){
+								found = 1;
+								break;
+							}
+							k++;
+						}
+						if (found != 1){	// if not found then add
+							unique_src++;
+							src_array = add_short_to_array(src_array, ((zbee_struct_internal*)_frame->frame_ptr)->src_id, unique_src);
+						}
+					}
+					if (unique_dst == 0){
+						dst_array = (unsigned short*)calloc(1,sizeof(short));
+						*dst_array= ((zbee_struct_internal*)_frame->frame_ptr)->dst_id;
+						unique_dst++;
+					} else {
+						unsigned int k = 0;
+						unsigned char found = 0;
+						while(k < unique_dst){	// cycle through all unique types
+							if(dst_array[k] == ((zbee_struct_internal*)_frame->frame_ptr)->dst_id){
+								found = 1;
+								break;
+							}
+							k++;
+						}
+						if (found != 1){	// if not found then add
+							unique_dst++;
+							dst_array = add_short_to_array(dst_array, ((zbee_struct_internal*)_frame->frame_ptr)->dst_id, unique_dst); //_new_array;
+						}
+					}
+				}
+				break;
+			default:
+			
 				break;
 		}
 

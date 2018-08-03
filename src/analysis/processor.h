@@ -6,6 +6,7 @@
 #include "../enumerator.h" 
 #include "../int_wifi.h"
 #include "../int_ipshort.h"
+#include "../int_zbee.h"
 
 void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator);
 void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator);

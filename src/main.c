@@ -100,7 +100,10 @@ int main(int argc, char *argv[])
 				while(fgets(line_buffer, 1024, stdin) != NULL){
 					if (((argument_flags & ZIGB_FLAG) == ZIGB_FLAG)){
 						//printf("\nEn - %s\n", line_buffer);
-						process_zigbee_file_input_live(LIVE_FLAG, line_buffer, out_filename_ptr, argument_flags, argv[0], Enumerator_Addr);
+						zbee_struct_internal *test_zbee = (zbee_struct_internal*)calloc(1, sizeof(zbee_struct_internal));
+						pro_zbee_int(line_buffer, test_zbee, Enumerator_Addr);
+						analyse_slot_add(slot, (void*)test_zbee, sizeof(zbee_struct_internal), 3, Enumerator_Addr);
+						//process_zigbee_file_input_live(LIVE_FLAG, line_buffer, out_filename_ptr, argument_flags, argv[0], Enumerator_Addr);
 
 					} else if (((argument_flags & WIFI_FLAG) == WIFI_FLAG)){
 						//process_wifi_file_input_live(LIVE_FLAG, line_buffer, out_filename_ptr, argument_flags, argv[0], Enumerator_Addr, Enumerator_Proto);
