@@ -8,7 +8,7 @@ void pro_audio_int(char *line, audio_struct_internal *audio_frm){
 	int i = 0;
 	while (ptr[i] != ',') i++;
 	ptr[i] = '\0';
-	audio_frm->timestamp = atol(ptr); i++;
+	audio_frm->timestamp = (atol(ptr)*1000000); i++;
 	audio_frm->value = atof(&ptr[i]);
 }
 Audio_Frame **process_audio_frame_lines(char *ptr, unsigned long lines, unsigned int *filtered){

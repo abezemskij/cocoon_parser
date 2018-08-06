@@ -24,9 +24,9 @@ void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsig
 	uint64_t time = *((uint64_t*)object);
 	if (slot->n == 0){ slot->slot_start_time = time; slot->slot_stop_time = time+(1000000*window_size); }//ms
 	
-	if ((time > slot->slot_stop_time && (*process_flag == 5)) || (*process_flag == 1) || ( (time >= slot->slot_stop_time) && ( type == 4) ) ){ // if current time of an object is higher then stop time i.e. exceeds
+	if ((time >= slot->slot_stop_time && (*process_flag == 5)) || (*process_flag == 1) || ( (time >= slot->slot_stop_time) && ( type == 4) ) ){ // if current time of an object is higher then stop time i.e. exceeds
 		// process current slotn
-		GLOBAL_KNOWLEDGE *_glob;// = perform_global_features(slot, 1); // 1 wifi
+		GLOBAL_KNOWLEDGE *_glob = 0;// = perform_global_features(slot, 1); // 1 wifi
 		switch(type){ // || ( (time >= slot->slot_stop_time) && ( type == 4) )
 			case 1: //wifi
 				_glob = perform_global_features(slot, type);
@@ -76,7 +76,7 @@ void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsig
 							spec_frm = spec_frm->next;
 							i++;
 						}
-						double avg_rms = _math_avg_dev_dbl(dbl_array, rms_count);
+						double avg_rms = _math_average_dbl(dbl_array, rms_count);
 						std_rms = _math_stdev(_math_variance_dbl(dbl_array, avg_rms, rms_count));
 						if (isnan(std_rms)) std_rms = 0;
 						if (isnan(avg_rms)) avg_rms = 0;
@@ -84,7 +84,7 @@ void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsig
 						if (isinf(avg_rms)) avg_rms = 0;
 						_math_minmax_dbl(dbl_array, rms_count, &min_rms, &max_rms);
 						free(dbl_array);
-						printf("%" PRIu64 ",%d,%.2f,%.2f,%.2f,%.2f", slot->slot_stop_time, rms_count, avg_rms, min_rms, max_rms,std_rms);
+						printf("%" PRIu64 ",%d,%.2f,%.2f,%.2f,%.2f\n", slot->slot_stop_time, rms_count, avg_rms, min_rms, max_rms,std_rms);
 						fflush(stdout);
 				}
 				break;
@@ -93,7 +93,7 @@ void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsig
 				break;
 		}
 		
-		global_knowledge_free(_glob);
+		if (_glob != 0) global_knowledge_free(_glob);
 		// free the slot, taking into account types
 //		free_slot_frame_type(slot, type);
 		free_slot(slot);
