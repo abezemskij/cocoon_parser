@@ -110,7 +110,7 @@ void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsig
 							i++;
 						}
 						if (rms_count != 0){
-							double avg_rms = _math_average_dbl(dbl_array, rms_count);
+							avg_rms = _math_average_dbl(dbl_array, rms_count);
 							std_rms = _math_stdev(_math_variance_dbl(dbl_array, avg_rms, rms_count));
 							if (isnan(std_rms)) std_rms = 0;
 							if (isnan(avg_rms)) avg_rms = 0;
