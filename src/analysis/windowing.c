@@ -6,7 +6,7 @@ SLOT* slot_init(){
         return ptr;
 }
 void free_slot(SLOT *slot){
-        FRAME *frame_ptr;
+		FRAME *frame_ptr;
         FRAME *min_one;
         frame_ptr = slot->frame_array;
         min_one = slot->frame_array;

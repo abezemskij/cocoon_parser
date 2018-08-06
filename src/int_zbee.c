@@ -119,6 +119,7 @@ void zbee_zigbee_handler(char *line, zbee_struct_internal *zbee_frm, Enum_Type *
 void pro_zbee_int(char *line, zbee_struct_internal *zbee_frm, Enum_Type *Enumerator){
 		unsigned int index = 0;
 		unsigned int ind = 0;
+		if (strcmp(line, "\n") == 0) {free(zbee_frm); zbee_frm = 0; return;}
 	    // extract epoch time
 		// example     1 2018-07-22 17:24:11.316703005       0xd344 → 0x0000       IEEE 802.15.4 26 Data Request
 	    if (line[index] == ' '){ while(line[index] == ' ')index++; while(line[index] != ' ')index++; index++; }// skip the number and spacing afterwards; should be in position of 2018-07...005

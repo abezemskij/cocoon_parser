@@ -19,12 +19,45 @@ void free_slot_frame_type(SLOT *slot, unsigned char type){
 			break;
 	}
 }
-
+unsigned char validate_object(SLOT *slot, void *object, unsigned char type){
+	if (object == 0){
+		switch(type){
+			case 1:	//
+				printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time);
+				return 0;
+				break;
+			case 2:
+				printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time);
+				return 0;
+				break;
+			case 3:
+				printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time); // possibly needs to move in to an if statement
+				return 0;
+				break;
+			case 4:
+				printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time);
+				return 0;
+				break;
+			case 5:
+				printf("%" PRIu64 ",0,0,0,0,0\n", slot->slot_stop_time);
+				return 0;
+				break;
+			default:
+				break;
+		}
+	}
+	return 1;
+}
 void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsigned char type, Enum_Type *Enumerator, unsigned char *process_flag, unsigned char window_size){
+	/*if (validate_object(slot, object, type) == 0){
+		// update slot times
+		slot->slot_start_time = slot->slot_stop_time; slot->slot_stop_time += (1000000*window_size);
+		return;
+	}*/
 	uint64_t time = *((uint64_t*)object);
 	if (slot->n == 0){ slot->slot_start_time = time; slot->slot_stop_time = time+(1000000*window_size); }//ms
 	
-	if ((time >= slot->slot_stop_time && (*process_flag == 5)) || (*process_flag == 1) || ( (time >= slot->slot_stop_time) && ( type == 4) ) ){ // if current time of an object is higher then stop time i.e. exceeds
+	if ((time >= slot->slot_stop_time && (*process_flag == 5)) || (*process_flag == 1) || ( (time >= slot->slot_stop_time) && ( type == 4) )){ // if current time of an object is higher then stop time i.e. exceeds
 		// process current slotn
 		GLOBAL_KNOWLEDGE *_glob = 0;// = perform_global_features(slot, 1); // 1 wifi
 		switch(type){ // || ( (time >= slot->slot_stop_time) && ( type == 4) )

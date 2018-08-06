@@ -29,10 +29,13 @@ unsigned char eapol_flag = 0;
 
 unsigned char process_flag = 5;
 unsigned char window_seconds = 0;
-void int_sigalarm(int sig){
-	printf("\n!!! INTERRUPT !!!\n");
-	process_flag = 1;
-}
+
+Enum_Type *Enumerator_Addr = (Enum_Type *)calloc(1, sizeof(Enum_Type));
+Enum_Type *Enumerator_Proto = (Enum_Type *)calloc(1, sizeof(Enum_Type));
+SLOT *slot = slot_init();
+unsigned short argument_flags = 0;
+
+
 
 void showHelpMessage(){
 	printf("Usage: C_Parser -[io] (filename) -[lwzhsa] \n");
@@ -46,13 +49,51 @@ void showHelpMessage(){
 	printf(" -h\tThis help menu\n");
 }
 
+void middleware_handler(char *line_buffer){
+	
+}
+unsigned int identify_arg(){
+	if ((argument_flags & ZIGB_FLAG) == ZIGB_FLAG) return 1;
+	if ((argument_flags & WIFI_FLAG) == WIFI_FLAG) return 2;
+	if ((argument_flags & AUDIO_FLA) == AUDIO_FLA) return 3;
+	if ((argument_flags & SPECT_FLA) == SPECT_FLA) return 4;
+	if ((argument_flags & IP_SHOR_F) == IP_SHOR_F) return 5;
+	return 0;
+}
+void int_sigalarm(int sig){
+	//printf("\n!!! INTERRUPT !!!\n");
+	process_flag = 1;
+	if (slot->n < 1){
+		switch(identify_arg()){
+			case 1:	// wifi
+				printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time);
+				break;
+			case 2:	// ip
+				printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time);
+				break;
+			case 3:
+				printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time); // possibly needs to move in to an if statement
+				break;
+			case 4: // spect
+				printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time);
+				break;
+			case 5:
+				printf("%" PRIu64 ",0,0,0,0,0\n", slot->slot_stop_time);
+				break;
+			default:
+				break;
+		}
+		slot->slot_stop_time = slot->slot_start_time+(1000000*window_seconds); slot->slot_start_time = slot->slot_stop_time; 
+	}
+	alarm(window_seconds);
+}
 
 int main(int argc, char *argv[])
 {
 	//printf("Hello World, %s\n", argv[0]);
 	char *path = extract_path(argv[0]);
-	Enum_Type *Enumerator_Addr = (Enum_Type *)calloc(1, sizeof(Enum_Type));
-	Enum_Type *Enumerator_Proto = (Enum_Type *)calloc(1, sizeof(Enum_Type));
+	//Enum_Type *Enumerator_Addr = (Enum_Type *)calloc(1, sizeof(Enum_Type));
+	//Enum_Type *Enumerator_Proto = (Enum_Type *)calloc(1, sizeof(Enum_Type));
 //	enum_init(&Enum_Start);
 //	enum_init(&WiFi_Address);
 //	enum_init(&IP_Address);
@@ -64,12 +105,12 @@ int main(int argc, char *argv[])
 	char *out_filename_ptr = (char*)calloc(FILENAME_BUFFER, sizeof(char));
 
 	// process arguments
-	unsigned short argument_flags = 0;
+	
 	argument_flags = argument_flagger(argc, argv, argument_flags, in_filename_ptr, out_filename_ptr, &window_seconds);
 	//load_maps();
 	load_maps(argument_flags, Enumerator_Addr, argv[0]);
 	unsigned char active_slot = 0;
-	SLOT *slot = slot_init();
+	
 	if (window_seconds != 0 ){
 		signal(SIGALRM, int_sigalarm);
 		alarm(window_seconds); process_flag = 4;
@@ -114,13 +155,13 @@ int main(int argc, char *argv[])
 					fwrite(&line_count, sizeof(int), 1, out_file);
 					fclose(out_file);
 				}
-				while(fgets(line_buffer, 1024, stdin) != NULL){
+				while((fgets(line_buffer, 1024, stdin) != NULL)){
 					if (((argument_flags & ZIGB_FLAG) == ZIGB_FLAG)){
 						//printf("\nEn - %s\n", line_buffer);
 						zbee_struct_internal *test_zbee = (zbee_struct_internal*)calloc(1, sizeof(zbee_struct_internal));
 						pro_zbee_int(line_buffer, test_zbee, Enumerator_Addr);
 						analyse_slot_add(slot, (void*)test_zbee, sizeof(zbee_struct_internal), 3, Enumerator_Addr, &process_flag, window_seconds);
-						if (process_flag == 2){ process_flag = 0; alarm(window_seconds); }
+						if (process_flag == 2){ process_flag = 0; }
 						//process_zigbee_file_input_live(LIVE_FLAG, line_buffer, out_filename_ptr, argument_flags, argv[0], Enumerator_Addr);
 
 					} else if (((argument_flags & WIFI_FLAG) == WIFI_FLAG)){
@@ -128,19 +169,19 @@ int main(int argc, char *argv[])
 							wifi_struct_internal *test_wifi = (wifi_struct_internal*)calloc(1, sizeof(wifi_struct_internal));
 							pro_wifi_int(line_buffer, test_wifi, Enumerator_Addr);
 							analyse_slot_add(slot, (void*)test_wifi, sizeof(wifi_struct_internal), 1, Enumerator_Addr, &process_flag, window_seconds);
-							if (process_flag == 2){ process_flag = 0; alarm(window_seconds); }
+							if (process_flag == 2){ process_flag = 0; }
 					} else if (((argument_flags & IP_SHOR_F) == IP_SHOR_F)){
 						ip_struct_internal *test_ip = (ip_struct_internal*)calloc(1,sizeof(ip_struct_internal));
 						pro_short_int(line_buffer, test_ip, Enumerator_Addr);
 						analyse_slot_add(slot, (void*)test_ip, sizeof(ip_struct_internal), 2, Enumerator_Addr, &process_flag, window_seconds);
-						if (process_flag == 2){ process_flag = 0; alarm(window_seconds); }
+						if (process_flag == 2){ process_flag = 0;  }
 						//process_ip_short_input_live(LIVE_FLAG, line_buffer, out_filename_ptr, argument_flags, argv[0], Enumerator_Addr, Enumerator_Proto);
 					} else if (((argument_flags & AUDIO_FLA) == AUDIO_FLA)){
 //						printf("\n%d", sizeof(Audio_Frame));
 						audio_struct_internal *test_aud = (audio_struct_internal*)calloc(1,sizeof(audio_struct_internal));
 						pro_audio_int(line_buffer, test_aud);
 						analyse_slot_add(slot, (void*)test_aud, sizeof(audio_struct_internal), 5, Enumerator_Addr, &process_flag, window_seconds);
-						if (process_flag == 2){ process_flag = 0; alarm(window_seconds); }
+						if (process_flag == 2){ process_flag = 0; }
 						//process_audio_input_live(LIVE_FLAG, line_buffer, argv[0], argument_flags, out_filename_ptr);
 						//if (process_flag == 2){ process_flag = 0; alarm(window_seconds); }
 					} else if (((argument_flags & SPECT_FLA) == SPECT_FLA)){
