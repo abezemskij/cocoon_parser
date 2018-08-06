@@ -27,6 +27,27 @@ void free_slot(SLOT *slot){
 void frame_add(SLOT *slot, void *object, unsigned char object_size, unsigned char type){
         // type 0 = wifi, 1 = zigbee, 2 = ip, 3 = sound
         FRAME *_frame = (FRAME*)0x0000;
+        if (slot->frame_array != 0){
+			_frame = slot->frame_array;
+            while(_frame->next != 0) _frame = _frame->next;
+            _frame->next = (FRAME *)calloc(1, sizeof(FRAME));
+            _frame->next->frame_len = object_size;// zigbee frame length
+            _frame->next->frame_ptr = (char*)calloc(1, _frame->next->frame_len);
+            memcpy(_frame->next->frame_ptr, object, _frame->next->frame_len);
+            slot->n++;
+        } else {
+                                _frame = (FRAME *)calloc(1, sizeof(FRAME));
+                                _frame->frame_len = object_size;// zigbee frame length
+                                _frame->frame_ptr = (char*)calloc(1, _frame->frame_len);
+                                memcpy(_frame->frame_ptr, object, _frame->frame_len);
+                                slot->frame_array = _frame;
+                                slot->n++;
+//                              printf("\n%d\n", ((ZigBee_Frame*)object)->packet_size);
+       }
+}
+/*void frame_add(SLOT *slot, void *object, unsigned char object_size, unsigned char type){
+        // type 0 = wifi, 1 = zigbee, 2 = ip, 3 = sound
+        FRAME *_frame = (FRAME*)0x0000;
         switch(type){
                 case 0:
                         //wifi
@@ -59,10 +80,15 @@ void frame_add(SLOT *slot, void *object, unsigned char object_size, unsigned cha
                 case 3:
                         //sound
                         break;
+                case 4:
+						// spectrum
+						
+							
+						break;
                 default:
                         break;
         }
-}
+}*/
 void update_stop_start_times(SLOT *slot, uint64_t global_start_time, unsigned int *multiplier, unsigned int interval){
         slot->slot_start_time = global_start_time + (interval*(*multiplier)++);
         slot->slot_stop_time = slot->slot_start_time+interval;

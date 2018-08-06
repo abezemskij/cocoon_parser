@@ -1,9 +1,10 @@
-
+#include "signal.h"
 #include "argread.h"
 #include "int_audio.h"
 #include "int_ipshort.h"
 #include "int_wifi.h"
 #include "int_zbee.h"
+#include "int_spectrum.h"
 #include "slot_wrap.h"
 
 #define FILENAME_BUFFER 128
@@ -25,6 +26,13 @@ unsigned long line_offset_increments = 1;
 unsigned long mlk_alloc = 0;
 unsigned long mlk_free = 0;
 unsigned char eapol_flag = 0;
+
+unsigned char process_flag = 5;
+unsigned char window_seconds = 0;
+void int_sigalarm(int sig){
+	printf("\n!!! INTERRUPT !!!\n");
+	process_flag = 1;
+}
 
 void showHelpMessage(){
 	printf("Usage: C_Parser -[io] (filename) -[lwzhsa] \n");
@@ -57,11 +65,17 @@ int main(int argc, char *argv[])
 
 	// process arguments
 	unsigned short argument_flags = 0;
-	argument_flags = argument_flagger(argc, argv, argument_flags, in_filename_ptr, out_filename_ptr);
+	argument_flags = argument_flagger(argc, argv, argument_flags, in_filename_ptr, out_filename_ptr, &window_seconds);
 	//load_maps();
 	load_maps(argument_flags, Enumerator_Addr, argv[0]);
 	unsigned char active_slot = 0;
 	SLOT *slot = slot_init();
+	if (window_seconds != 0 ){
+		signal(SIGALRM, int_sigalarm);
+		alarm(window_seconds); process_flag = 4;
+	} else {
+		window_seconds = 1;
+	}
 	if ((argument_flags & STDOUT_FL) == STDOUT_FL){
 		in_filename_ptr = (char*) calloc(1, sizeof(char));
 		out_filename_ptr= (char*) calloc(1, sizeof(char));
@@ -85,9 +99,12 @@ int main(int argc, char *argv[])
 				fclose(in_file);
 			}
 
-	} else if (((argument_flags & LIVE_FLAG) != 0) &&	// if live flag & (output or stdout) & not(zigbee or wifi)
-				(((argument_flags & OU_F_FLAG) != 0) || ((argument_flags & STDOUT_FL) != 0)) &&
-				(((argument_flags & ZIGB_FLAG) == 0) || ((argument_flags & WIFI_FLAG) == 0))){
+	} else if (
+	((argument_flags & LIVE_FLAG) != 0) &&	// if live flag & (output or stdout) & not(zigbee or wifi)
+				(((argument_flags & OU_F_FLAG) != 0)
+				 || ((argument_flags & STDOUT_FL) != 0)) &&
+				(((argument_flags & ZIGB_FLAG) == 0) || ((argument_flags & WIFI_FLAG) == 0)) || ((argument_flags & SPECT_FLA) == SPECT_FLA)
+				){
 
 				char *line_buffer = (char*)calloc(1024, sizeof(char));
 				unsigned int line_count = 0;
@@ -102,23 +119,34 @@ int main(int argc, char *argv[])
 						//printf("\nEn - %s\n", line_buffer);
 						zbee_struct_internal *test_zbee = (zbee_struct_internal*)calloc(1, sizeof(zbee_struct_internal));
 						pro_zbee_int(line_buffer, test_zbee, Enumerator_Addr);
-						analyse_slot_add(slot, (void*)test_zbee, sizeof(zbee_struct_internal), 3, Enumerator_Addr);
+						analyse_slot_add(slot, (void*)test_zbee, sizeof(zbee_struct_internal), 3, Enumerator_Addr, &process_flag, window_seconds);
+						if (process_flag == 2){ process_flag = 0; alarm(window_seconds); }
 						//process_zigbee_file_input_live(LIVE_FLAG, line_buffer, out_filename_ptr, argument_flags, argv[0], Enumerator_Addr);
 
 					} else if (((argument_flags & WIFI_FLAG) == WIFI_FLAG)){
 						//process_wifi_file_input_live(LIVE_FLAG, line_buffer, out_filename_ptr, argument_flags, argv[0], Enumerator_Addr, Enumerator_Proto);
 							wifi_struct_internal *test_wifi = (wifi_struct_internal*)calloc(1, sizeof(wifi_struct_internal));
 							pro_wifi_int(line_buffer, test_wifi, Enumerator_Addr);
-							analyse_slot_add(slot, (void*)test_wifi, sizeof(wifi_struct_internal), 1, Enumerator_Addr);
+							analyse_slot_add(slot, (void*)test_wifi, sizeof(wifi_struct_internal), 1, Enumerator_Addr, &process_flag, window_seconds);
+							if (process_flag == 2){ process_flag = 0; alarm(window_seconds); }
 					} else if (((argument_flags & IP_SHOR_F) == IP_SHOR_F)){
 						ip_struct_internal *test_ip = (ip_struct_internal*)calloc(1,sizeof(ip_struct_internal));
 						pro_short_int(line_buffer, test_ip, Enumerator_Addr);
-						analyse_slot_add(slot, (void*)test_ip, sizeof(ip_struct_internal), 2, Enumerator_Addr);
+						analyse_slot_add(slot, (void*)test_ip, sizeof(ip_struct_internal), 2, Enumerator_Addr, &process_flag, window_seconds);
+						if (process_flag == 2){ process_flag = 0; alarm(window_seconds); }
 						//process_ip_short_input_live(LIVE_FLAG, line_buffer, out_filename_ptr, argument_flags, argv[0], Enumerator_Addr, Enumerator_Proto);
 					} else if (((argument_flags & AUDIO_FLA) == AUDIO_FLA)){
 //						printf("\n%d", sizeof(Audio_Frame));
-						process_audio_input_live(LIVE_FLAG, line_buffer, argv[0], argument_flags, out_filename_ptr);
+						audio_struct_internal *test_aud = (audio_struct_internal*)calloc(1,sizeof(audio_struct_internal));
+						pro_audio_int(line_buffer, test_aud);
+						analyse_slot_add(slot, (void*)test_aud, sizeof(audio_struct_internal), 5, Enumerator_Addr, &process_flag, window_seconds);
+						if (process_flag == 2){ process_flag = 0; alarm(window_seconds); }
+						//process_audio_input_live(LIVE_FLAG, line_buffer, argv[0], argument_flags, out_filename_ptr);
+						//if (process_flag == 2){ process_flag = 0; alarm(window_seconds); }
 					} else if (((argument_flags & SPECT_FLA) == SPECT_FLA)){
+						spec_struct_internal *test_spec = (spec_struct_internal*)calloc(1,sizeof(spec_struct_internal));
+						process_rf_output(line_buffer, test_spec);
+						if (test_spec->n != 0) analyse_slot_add(slot, (void*)test_spec, sizeof(spec_struct_internal), 4, Enumerator_Addr, &process_flag, window_seconds);
 						// process_spectrum_input
 					}
 					line_count++;

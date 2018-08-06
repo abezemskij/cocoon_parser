@@ -1,6 +1,6 @@
 #include "argread.h"
 
-unsigned short extract_flag(char *arg, unsigned short argument_flags, char *in_filename_ptr, char *out_filename_ptr){
+unsigned short extract_flag(char *arg, unsigned short argument_flags, char *in_filename_ptr, char *out_filename_ptr, unsigned char *window_val){
         unsigned short args = argument_flags;
         if(strcmp(arg, "-l") == 0){
                 args |= LIVE_FLAG;
@@ -22,7 +22,12 @@ unsigned short extract_flag(char *arg, unsigned short argument_flags, char *in_f
                 args |= AUDIO_FLA;
         } else if (strcmp(arg, "-t") == 0){
                 args |= STDOUT_FL;
-        } else {
+        } else if (strcmp(arg, "-p") == 0){
+		args |= SPECT_FLA;
+	} else if (strcmp(arg, "-d") == 0){
+		args |= WINDO_FLA;
+		args |= WINDOW_VA;
+	} else {
                 if ((args & PARAMETERF) != 0){
                         if (((args & IN_F_FLAG) != 0)){
                                 char *t = arg;
@@ -40,18 +45,21 @@ unsigned short extract_flag(char *arg, unsigned short argument_flags, char *in_f
                                 memcpy(out_filename_ptr, arg, i);
                                 args ^= PARAMETERF; args ^= OU_F_FLAG; return args;
                         }
-                }
+                } else if ((args & WINDOW_VA) != 0) {
+			*window_val = atoi(arg);
+			args ^= WINDOW_VA; args ^=WINDO_FLA; return args;
+		}
         }
         return args;
 }
 
 
-unsigned short argument_flagger(int argc, char** argv, unsigned short argument_flags, char *in_file, char *out_file){
+unsigned short argument_flagger(int argc, char** argv, unsigned short argument_flags, char *in_file, char *out_file, unsigned char *window_val){
         unsigned char i = 1;
 	unsigned short local_args = argument_flags;
         if (argc > 1){
                 while(--argc){
-                        local_args = extract_flag(argv[i], local_args, in_file, out_file);
+                        local_args = extract_flag(argv[i], local_args, in_file, out_file, window_val);
                         i++;
                         if (local_args & HELP_FLAG) break; // if help is set then break the loop and show help
 			argument_flags |= local_args;

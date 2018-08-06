@@ -22,6 +22,8 @@
 #define AUDIO_FLA  1<<9 // Audio flag in a format of <timestamp>,<value>
 #define STDOUT_FL  1<<10 // --stout equivalent
 #define SPECT_FLA  1<<11 // spectrum analysis
+#define WINDO_FLA  1<<12 // window provided
+#define WINDOW_VA  1<<13 // Window value
 #define WIN_MODE   1
 #define LINE_INIT  100000 // Lines initialized
 

@@ -20,13 +20,14 @@ void free_slot_frame_type(SLOT *slot, unsigned char type){
 	}
 }
 
-void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsigned char type, Enum_Type *Enumerator){
+void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsigned char type, Enum_Type *Enumerator, unsigned char *process_flag, unsigned char window_size){
 	uint64_t time = *((uint64_t*)object);
-	if (slot->n == 0){ slot->slot_start_time = time; slot->slot_stop_time = time+1000000; }//ms
-	if (time > slot->slot_stop_time){ // if current time of an object is higher then stop time i.e. exceeds
-		// process current slot
+	if (slot->n == 0){ slot->slot_start_time = time; slot->slot_stop_time = time+(1000000*window_size); }//ms
+	
+	if ((time > slot->slot_stop_time && (*process_flag == 5)) || (*process_flag == 1) || ( (time >= slot->slot_stop_time) && ( type == 4) ) ){ // if current time of an object is higher then stop time i.e. exceeds
+		// process current slotn
 		GLOBAL_KNOWLEDGE *_glob;// = perform_global_features(slot, 1); // 1 wifi
-		switch(type){
+		switch(type){ // || ( (time >= slot->slot_stop_time) && ( type == 4) )
 			case 1: //wifi
 				_glob = perform_global_features(slot, type);
 				cpu_wifi_out(slot, _glob, Enumerator);
@@ -41,6 +42,52 @@ void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsig
 				_glob = perform_global_features(slot, type);
 				cpu_zbee_out(slot, _glob, Enumerator);
 				break;
+			case 4: // ...............................................................................................
+				if (slot->n > 0){
+						FRAME *spec_frm = slot->frame_array;
+						printf("% " PRIu64 "", ((spec_struct_internal*)(spec_frm->frame_ptr))->timestamp);
+						int i = 0;
+						while(i < slot->n){
+							printf(",%.2f", ((spec_struct_internal*)(spec_frm->frame_ptr))->array[0]);
+							spec_frm = spec_frm->next;
+							i++;
+						}
+						printf("\n");
+						fflush(stdout);
+						free_slot(slot);
+						frame_add(slot, object, object_size, 1); // type needs to be 1, can be removed later
+						slot->slot_start_time = slot->slot_stop_time; slot->slot_stop_time += (1000000*window_size);
+						return;
+				}
+				break;
+			case 5: // audio
+				if (slot->n > 0){
+						double *dbl_array = (double*)calloc(slot->n, sizeof(double));
+						FRAME *spec_frm = slot->frame_array;
+						unsigned int rms_count = 0;
+						unsigned int freq = 0;
+						double min_rms = 0; double max_rms=0; double std_rms = 0.0;
+						int i = 0;
+						while(i < slot->n){
+							if (((audio_struct_internal*)(spec_frm->frame_ptr))->value > 3.0){
+								 rms_count++;
+								 dbl_array[i] = ((audio_struct_internal*)(spec_frm->frame_ptr))->value;
+							}
+							spec_frm = spec_frm->next;
+							i++;
+						}
+						double avg_rms = _math_avg_dev_dbl(dbl_array, rms_count);
+						std_rms = _math_stdev(_math_variance_dbl(dbl_array, avg_rms, rms_count));
+						if (isnan(std_rms)) std_rms = 0;
+						if (isnan(avg_rms)) avg_rms = 0;
+						if (isinf(std_rms)) std_rms = 0;
+						if (isinf(avg_rms)) avg_rms = 0;
+						_math_minmax_dbl(dbl_array, rms_count, &min_rms, &max_rms);
+						free(dbl_array);
+						printf("%" PRIu64 ",%d,%.2f,%.2f,%.2f,%.2f", slot->slot_stop_time, rms_count, avg_rms, min_rms, max_rms,std_rms);
+						fflush(stdout);
+				}
+				break;
 			default:
 				printf("Defaulted in analyse slot_add (slot_wrap.c)");
 				break;
@@ -54,9 +101,9 @@ void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsig
 		// set current object as 
 		frame_add(slot, object, object_size, 1); // type needs to be 1, can be removed later
 		slot->slot_start_time = slot->slot_stop_time;
-		slot->slot_stop_time = slot->slot_start_time +1000000;
-
-	} else if (time >= slot->slot_start_time){ // within the range start <-> stop times, good
+		slot->slot_stop_time = slot->slot_start_time +(1000000*window_size);
+		if (*process_flag == 1) *process_flag = 2;
+	} else if (((time >= slot->slot_start_time) && (*process_flag == 5)) || (*process_flag == 0) || (*process_flag == 4)){ // within the range start <-> stop times, good
 		frame_add(slot, object, object_size, 1);
 	} else {	// something went wrong for sure
 		printf("analyse_slot_add func failed, abnormal if condition! \n");
@@ -65,12 +112,15 @@ void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsig
 }
 unsigned short *add_short_to_array(unsigned short *array, unsigned short val, unsigned int index){
 	unsigned short *_temp_array = array;
+	if (_temp_array == 0){ _temp_array = (unsigned short*)calloc(index, sizeof(short)); _temp_array[0] = val; return _temp_array; }
         unsigned short *_new_array = (unsigned short*)calloc(index, sizeof(short));
         memcpy(_new_array, _temp_array, sizeof(short)*(index-1));
         free(_temp_array);
         _new_array[index-1] = val;
 	return _new_array;
 }
+
+
 GLOBAL_KNOWLEDGE *perform_global_features(SLOT *slot, unsigned char type){
 	GLOBAL_KNOWLEDGE *_glob = global_knowledge_init();
 	unsigned int i = 0;

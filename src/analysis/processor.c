@@ -131,8 +131,11 @@ void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 	unsigned int  max_lat = 0.0;
 
 	while(i < glob->Global_SubTypes->n){	// for each subtype
+		k = 0;
 		while(k < glob->Global_Types->n){ // for each type
+			j = 0;
 			while(j < glob->Global_Sources->n){ // for every source
+				l = 0;
 				while(l < glob->Global_Destinations->n){ // for every destination
 					FRAME *_frame = slot->frame_array;
 					unsigned int *val_array = (unsigned int*)calloc(slot->n, sizeof(int)); // worst case scenario
@@ -169,11 +172,17 @@ void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 
 						if (isnan(avg_dev)) avg_dev= 0.0;
 						if (isnan(std)) std = 0.0;
+						if (isnan(std_lat)) std_lat = 0.0;
+						
+						if (isinf(avg_dev)) avg_dev= 0.0;
+						if (isinf(std)) std = 0.0;
+						if (isinf(std_lat)) std_lat = 0.0;
+						
 						_math_minmax(val_array, freq, &min, &max);
 						// output
 						char *src_mac = enum_find_frame_name(glob->Global_Sources->array[j], Enumerator);
 						char *dst_mac = enum_find_frame_name(glob->Global_Destinations->array[l], Enumerator);
-						printf("%" PRIu64 ",%s,%s,%d,%d,%d,%.5f,%d,%d,%.5f,%.5f,%d,%d,%.5f\n", slot->slot_stop_time, src_mac, dst_mac, freq, glob->Global_Types->array[k], glob->Global_SubTypes->array[i], avg, min, max, std, avg_lat, min_lat, max_lat, std_lat);
+						printf("%" PRIu64 ",%s,%s,%d,%d,%d,%.2f,%d,%d,%.2f,%.2f,%d,%d,%.2f\n", slot->slot_stop_time, src_mac, dst_mac, freq, glob->Global_Types->array[k], glob->Global_SubTypes->array[i], avg, min, max, std, avg_lat, min_lat, max_lat, std_lat);
 						// clear variables
 						freq = 0; avg = 0; std = 0; flag = 0; min = 0; max = 0; avg_lat = 0; std_lat = 0; min_lat = 0; max_lat = 0; avg_dev = 0; x = 0;
 						free(dif_array);
@@ -183,34 +192,28 @@ void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 						char *src_mac = enum_find_frame_name(glob->Global_Sources->array[j], Enumerator);
 						char *dst_mac = enum_find_frame_name(glob->Global_Destinations->array[l], Enumerator);
 						freq = 0; avg = 0; std = 0; flag = 0; min = 0; max = 0; avg_lat = 0; std_lat = 0; min_lat = 0; max_lat = 0; avg_dev = 0; x = 0;
-						printf("%" PRIu64 ",%s,%s,%d,%d,%d,%.5f,%d,%d,%.5f,%.5f,%d,%d,%.5f\n", slot->slot_stop_time, src_mac, dst_mac, freq, glob->Global_Types->array[k], glob->Global_SubTypes->array[i], avg, min, max, std, avg_lat, min_lat, max_lat, std_lat);
+						printf("%" PRIu64 ",%s,%s,%d,%d,%d,%.2f,%d,%d,%.2f,%.2f,%d,%d,%.2f\n", slot->slot_stop_time, src_mac, dst_mac, freq, glob->Global_Types->array[k], glob->Global_SubTypes->array[i], avg, min, max, std, avg_lat, min_lat, max_lat, std_lat);
 						free(dif_array);
-						free(latency_array);
 						free(val_array);
-						continue;
-					} else if (freq == 0){
+						//continue;
+					} /*else if (freq == 0){
 						char src_mac[] = "0";
 						char dst_mac[] = "0";
 						freq = 0; avg = 0; std = 0; flag = 0; min = 0; max = 0; avg_lat = 0; std_lat = 0; min_lat = 0; max_lat = 0; avg_dev = 0; x = 0;
-						printf("%" PRIu64 ",%s,%s,%d,%d,%d,%.5f,%d,%d,%.5f,%.5f,%d,%d,%.5f\n", slot->slot_stop_time, src_mac, dst_mac, freq, glob->Global_Types->array[k], glob->Global_SubTypes->array[i], avg, min, max, std, avg_lat, min_lat, max_lat, std_lat);
+						printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time);
 						free(dif_array);
-						free(latency_array);
 						free(val_array);
-						continue;
-					}
+						//continue;
+					}*/
 					l++;
 				}
-				l = 0;
 				j++;
 			}
-			j = 0;
 			k++;
 		}
-		k = 0;
 		i++;
 	}
-	i = 0;
-
+	if (i == 0) printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time);
 }
 
 void cpu_zbee_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
@@ -277,6 +280,9 @@ void cpu_zbee_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 					avg_dev = _math_avg_dev(len_array, freq);
 					if (isnan(avg_dev)) avg_dev= 0.0;
 					if (isnan(std_sz)) std_sz = 0.0;
+					if (isinf(avg_lat)) avg_lat = 0.0;
+					if (isinf(std_lat)) std_lat = 0.0;
+					if (isinf(std_sz)) std_lat = 0.0;
 					_math_minmax(len_array, freq, &min_sz, &max_sz);
 					
 					//char *src_name = enum_find_frame_name(glob->Global_Sources->array[j], Enumerator);
@@ -462,6 +468,9 @@ void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 						freq = 0; avg_sz = 0.0; avg_ttl = 0.0; avg_dev = 0.0; avg_lat = 0.0; std_sz = 0.0; std_ttl = 0.0; std_lat = 0.0;
 						min_sz = 0; min_ttl = 0; min_lat = 0; max_sz = 0; max_ttl = 0; max_lat = 0; 
 						x++;
+						free(len_array);
+						free(time_dif_array);
+						free(ttl_array);
 					}
 					l++;
 				}

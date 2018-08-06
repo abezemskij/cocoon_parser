@@ -2,6 +2,15 @@
 #include "formatting.h"
 #include "fileutils.h"
 
+void pro_audio_int(char *line, audio_struct_internal *audio_frm){
+	// 1529699190,3.86
+	char *ptr = line;
+	int i = 0;
+	while (ptr[i] != ',') i++;
+	ptr[i] = '\0';
+	audio_frm->timestamp = atol(ptr); i++;
+	audio_frm->value = atof(&ptr[i]);
+}
 Audio_Frame **process_audio_frame_lines(char *ptr, unsigned long lines, unsigned int *filtered){
         char *line = ptr;
         char **t_upd = (char**)calloc(1, sizeof(t_upd));
