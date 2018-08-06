@@ -92,6 +92,7 @@ int main(int argc, char *argv[])
 {
 	//printf("Hello World, %s\n", argv[0]);
 	char *path = extract_path(argv[0]);
+	usleep(1000000); // delay to allow to initially
 	//Enum_Type *Enumerator_Addr = (Enum_Type *)calloc(1, sizeof(Enum_Type));
 	//Enum_Type *Enumerator_Proto = (Enum_Type *)calloc(1, sizeof(Enum_Type));
 //	enum_init(&Enum_Start);

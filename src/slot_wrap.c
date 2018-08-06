@@ -99,23 +99,25 @@ void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsig
 						FRAME *spec_frm = slot->frame_array;
 						unsigned int rms_count = 0;
 						unsigned int freq = 0;
-						double min_rms = 0; double max_rms=0; double std_rms = 0.0;
+						double min_rms = 0; double max_rms=0; double std_rms = 0.0; double avg_rms = 0.0;
 						int i = 0;
 						while(i < slot->n){
-							if (((audio_struct_internal*)(spec_frm->frame_ptr))->value > 3.0){
+							if (((audio_struct_internal*)(spec_frm->frame_ptr))->value > 0.9){
 								 rms_count++;
 								 dbl_array[i] = ((audio_struct_internal*)(spec_frm->frame_ptr))->value;
 							}
 							spec_frm = spec_frm->next;
 							i++;
 						}
-						double avg_rms = _math_average_dbl(dbl_array, rms_count);
-						std_rms = _math_stdev(_math_variance_dbl(dbl_array, avg_rms, rms_count));
-						if (isnan(std_rms)) std_rms = 0;
-						if (isnan(avg_rms)) avg_rms = 0;
-						if (isinf(std_rms)) std_rms = 0;
-						if (isinf(avg_rms)) avg_rms = 0;
-						_math_minmax_dbl(dbl_array, rms_count, &min_rms, &max_rms);
+						if (rms_count != 0){
+							double avg_rms = _math_average_dbl(dbl_array, rms_count);
+							std_rms = _math_stdev(_math_variance_dbl(dbl_array, avg_rms, rms_count));
+							if (isnan(std_rms)) std_rms = 0;
+							if (isnan(avg_rms)) avg_rms = 0;
+							if (isinf(std_rms)) std_rms = 0;
+							if (isinf(avg_rms)) avg_rms = 0;
+							_math_minmax_dbl(dbl_array, rms_count, &min_rms, &max_rms);
+						}	
 						free(dbl_array);
 						printf("%" PRIu64 ",%d,%.2f,%.2f,%.2f,%.2f\n", slot->slot_stop_time, rms_count, avg_rms, min_rms, max_rms,std_rms);
 						fflush(stdout);
