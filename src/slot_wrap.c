@@ -76,7 +76,7 @@ void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsig
 				cpu_zbee_out(slot, _glob, Enumerator);
 				break;
 			case 4: // ...............................................................................................
-				if (slot->n > 0){
+				if (slot->n >= 47*window_size){
 						FRAME *spec_frm = slot->frame_array;
 						printf("% " PRIu64 "", ((spec_struct_internal*)(spec_frm->frame_ptr))->timestamp);
 						int i = 0;

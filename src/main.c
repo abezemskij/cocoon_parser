@@ -113,8 +113,10 @@ int main(int argc, char *argv[])
 	unsigned char active_slot = 0;
 	
 	if (window_seconds != 0 ){
-		signal(SIGALRM, int_sigalarm);
-		alarm(window_seconds); process_flag = 4;
+		if ((argument_flags & SPECT_FLA) != SPECT_FLA){
+			signal(SIGALRM, int_sigalarm);
+			alarm(window_seconds); process_flag = 4;
+		}
 	} else {
 		window_seconds = 1;
 	}
