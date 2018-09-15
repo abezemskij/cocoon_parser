@@ -1,4 +1,5 @@
 #include "slot_wrap.h" 
+#include "pthread.h"
 
 void free_slot_frame_type(SLOT *slot, unsigned char type){
 	// wifi_struct_internal = 1
@@ -48,6 +49,83 @@ unsigned char validate_object(SLOT *slot, void *object, unsigned char type){
 	}
 	return 1;
 }
+void process_audio_test(SLOT *slot){
+	if (slot->n > 0){
+        	double *dbl_array = (double*)calloc(slot->n, sizeof(double));
+                FRAME *spec_frm = slot->frame_array;
+                unsigned int rms_count = 0;
+                unsigned int freq = 0;
+                double min_rms = 0; double max_rms=0; double std_rms = 0.0; double avg_rms = 0.0;
+                int i = 0;
+                while(i < slot->n){
+                	if (((audio_struct_internal*)(spec_frm->frame_ptr))->value > 0.9){
+                        	rms_count++;
+                                dbl_array[i] = ((audio_struct_internal*)(spec_frm->frame_ptr))->value;
+                        }
+                        spec_frm = spec_frm->next;
+                        i++;
+		}
+                if (rms_count != 0){
+                	avg_rms = _math_average_dbl(dbl_array, rms_count);
+                        std_rms = _math_stdev(_math_variance_dbl(dbl_array, avg_rms, rms_count));
+                        if (isnan(std_rms)) std_rms = 0;
+                        if (isnan(avg_rms)) avg_rms = 0;
+                        if (isinf(std_rms)) std_rms = 0;
+                        if (isinf(avg_rms)) avg_rms = 0;
+                        _math_minmax_dbl(dbl_array, rms_count, &min_rms, &max_rms);
+		} 
+                free(dbl_array);
+                printf("%" PRIu64 ",%d,%.2f,%.2f,%.2f,%.2f\n", slot->slot_stop_time, rms_count, avg_rms, min_rms, max_rms,std_rms);
+        	fflush(stdout);
+	}else {
+		printf("%" PRIu64 ",0,0.00,0.00.0.00.0.00\n", slot->slot_stop_time);
+	}
+}
+void *analyse_thread_IP(void *Some_Structure){
+		PT_GLOB *test = (PT_GLOB*)Some_Structure;
+//		sem_wait(test->semaphore);
+		// if Some_Structure->busy_flag == 1
+		// sem_wait();
+		// process
+		GLOBAL_KNOWLEDGE *_glob = 0;
+		_glob = perform_global_features(test->slot, test->type);
+//		if (test->slot->n == 0){
+//			uint64_t time;
+//			if (test->slot->frame_array->frame_ptr == NULL) time = 0;
+//			test->slot->slot_start_time = time; 
+//			test->slot->slot_stop_time = time+(1000000*test->window); 
+//		}//ms
+		if (test->slot->slot_start_time == 0){
+			if (test->slot->n != 0){
+				test->slot->slot_start_time = *(uint64_t*)(test->slot->frame_array->frame_ptr);
+				test->slot->slot_stop_time = (test->slot->slot_start_time)+(1000000*test->window);
+			} else { printf("laskdlaksdk\n"); }
+		}
+		switch(test->type){
+			case 1:
+				cpu_wifi_out(test->slot, _glob, test->Addresses);
+				break;
+			case 2:
+				cpu_ip_out(test->slot, _glob, test->Addresses);
+				break;
+			case 3:
+				cpu_zbee_out(test->slot, _glob, test->Addresses);
+				break;
+			case 4:
+				break;
+			case 5:
+				process_audio_test(test->slot);
+				break;
+			default:
+				break;
+		}
+		// sem_post();
+//		sem_post(test->semaphore);
+		free(_glob);
+		free_slot(test->slot);
+		test->slot->slot_start_time = test->slot->slot_stop_time;
+                test->slot->slot_stop_time = test->slot->slot_start_time +(1000000*test->window);
+}
 void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsigned char type, Enum_Type *Enumerator, unsigned char *process_flag, unsigned char window_size){
 	/*if (validate_object(slot, object, type) == 0){
 		// update slot times
@@ -77,19 +155,48 @@ void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsig
 				break;
 			case 4: // ...............................................................................................
 				if (slot->n >= 47*window_size){
-						FRAME *spec_frm = slot->frame_array;
-						printf("% " PRIu64 "", ((spec_struct_internal*)(spec_frm->frame_ptr))->timestamp);
-						int i = 0;
-						while(i < slot->n){
-							printf(",%.2f", ((spec_struct_internal*)(spec_frm->frame_ptr))->array[0]);
-							spec_frm = spec_frm->next;
-							i++;
+						if (slot->n <= 47*2){ // if less than 3 seconds, no point in processing avg, std etc...
+							FRAME *spec_frm = slot->frame_array;
+							printf("% " PRIu64 "", ((spec_struct_internal*)(spec_frm->frame_ptr))->timestamp);
+							int i = 0;
+							while(i < slot->n){
+								printf(",%.2f", ((spec_struct_internal*)(spec_frm->frame_ptr))->array[0]);
+								spec_frm = spec_frm->next;
+								i++;
+							}
+							printf("\n");
+							fflush(stdout);
+							free_slot(slot);
+							frame_add(slot, object, object_size, 1); // type needs to be 1, can be removed later
+							slot->slot_start_time = slot->slot_stop_time; slot->slot_stop_time += (1000000*window_size);
+						} else { // 3 or higher
+							FRAME *spec_frm = slot->frame_array;
+							printf("% " PRIu64 "", ((spec_struct_internal*)(spec_frm->frame_ptr))->timestamp);
+                                                        int i = 0;
+							int k = 0;
+							double value_array[47][window_size];
+							while(i < window_size){
+								while(k < 47){
+									value_array[k][i] = ((spec_struct_internal*)(spec_frm->frame_ptr))->array[0];
+									spec_frm = spec_frm->next;
+									k++;
+								}
+								k = 0;
+								i++;
+							}
+							i = 0;
+							while(i < 47){
+								double avg = _math_average(value_array[i], window_size);
+								double std = _math_stdev(_math_variance(value_array[i], avg, window_size));
+								printf(",%.2f,%.2f", avg, std);
+								i++;
+							}
+							printf("\n");
+							fflush(stdout);
+							free_slot(slot);
+							frame_add(slot, object, object_size, 1);
+							slot->slot_start_time = slot->slot_stop_time; slot->slot_stop_time += (1000000*window_size);
 						}
-						printf("\n");
-						fflush(stdout);
-						free_slot(slot);
-						frame_add(slot, object, object_size, 1); // type needs to be 1, can be removed later
-						slot->slot_start_time = slot->slot_stop_time; slot->slot_stop_time += (1000000*window_size);
 						return;
 				}
 				break;

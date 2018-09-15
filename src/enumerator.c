@@ -91,7 +91,7 @@ unsigned short enum_find_frame_type(char *name, Enum_Type *Enum){
         return res;
 }
 
-unsigned char manage_enumerations(Enum_Type *Enum_Start, char *start_pointer, char* end_pointer){
+unsigned short manage_enumerations(Enum_Type *Enum_Start, char *start_pointer, char* end_pointer){
         char *man_type = (char*)calloc((end_pointer-start_pointer)+1, sizeof(char));
         memcpy(man_type, start_pointer, sizeof(char)*(end_pointer-start_pointer));
         unsigned short ft = enum_find_frame_type(man_type, Enum_Start);

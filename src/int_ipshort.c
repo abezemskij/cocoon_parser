@@ -5,6 +5,7 @@
 void pro_short_int(char *line, ip_struct_internal *ip_frm, Enum_Type *Enumerator_Addr){
 	// process one line
 	// in:	1529703122.00000,192.168.1.200,224.0.0.251,445,255,17,5353,5353[\r\n\0,Evening]
+	// in:	1536933006.973495481,192.168.137.202,192.168.137.1,92,64,6,22,17882
 	// debug -l -s -t < ../../dataset/
 	unsigned char i = 0;
 	char *o_ptr = line; // operating ptr
