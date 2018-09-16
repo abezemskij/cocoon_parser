@@ -125,6 +125,7 @@ void *analyse_thread_IP(void *Some_Structure){
 		free_slot(test->slot);
 		test->slot->slot_start_time = test->slot->slot_stop_time;
                 test->slot->slot_stop_time = test->slot->slot_start_time +(1000000*test->window);
+		return 0;
 }
 void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsigned char type, Enum_Type *Enumerator, unsigned char *process_flag, unsigned char window_size){
 	/*if (validate_object(slot, object, type) == 0){

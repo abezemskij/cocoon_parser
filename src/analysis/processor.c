@@ -303,7 +303,7 @@ void cpu_zbee_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 					_math_minmax(len_array, freq, &min_sz, &max_sz); avg_sz = min_sz; std_sz = 0; // one packet: avg = min = max, std = inf
 					avg_lat = 0.0; std_lat = 0.0; min_lat = 0; max_lat = 0;
 
-					printf("%" PRIu64 ",%04x,%04x,%d,%d,%.2f,%d,%d,%.2f,%.2f,%d,%d,%.2f\n",
+					printf("%" PRIu64 ",%04x,%04x,%d,%d,%.2f,%.2f,%.2f,%.2f\n",
 					slot->slot_stop_time, glob->Global_Sources->array[i], glob->Global_Destinations->array[k],
 					// protocol
 					glob->Global_Types->array[j],

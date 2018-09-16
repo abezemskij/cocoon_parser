@@ -46,6 +46,7 @@ void *thread_sleep(void *num){
 		usleep(1000000*(*window));
 		if (busy_processing == 0) busy_processing = 1;
 	}
+	return 0;
 }
 
 void *thread_process(void *structure){
@@ -59,6 +60,7 @@ void *thread_process(void *structure){
 		}
 		usleep(30000); // solving full cpu load
 	}
+	return 0;
 }
 
 void *thread_conv_line_slot(void *pt_struct){
@@ -108,6 +110,7 @@ void *thread_conv_line_slot(void *pt_struct){
 		}
 		sem_post(&semaphore);
 	}
+	return 0;
 }
 
 void test_main(unsigned char type){
