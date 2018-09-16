@@ -72,10 +72,10 @@ void process_audio_test(SLOT *slot){
                         if (isnan(avg_rms)) avg_rms = 0;
                         if (isinf(std_rms)) std_rms = 0;
                         if (isinf(avg_rms)) avg_rms = 0;
-                        _math_minmax_dbl(dbl_array, rms_count, &min_rms, &max_rms);
+//                        _math_minmax_dbl(dbl_array, rms_count, &min_rms, &max_rms);
 		} 
                 free(dbl_array);
-                printf("%" PRIu64 ",%d,%.2f,%.2f,%.2f,%.2f\n", slot->slot_stop_time, rms_count, avg_rms, min_rms, max_rms,std_rms);
+                printf("%" PRIu64 ",%d,%.2f,%.2f\n", slot->slot_stop_time, rms_count, avg_rms,std_rms);
         	fflush(stdout);
 	}else {
 		printf("%" PRIu64 ",0,0.00,0.00.0.00.0.00\n", slot->slot_stop_time);
@@ -186,8 +186,8 @@ void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsig
 							}
 							i = 0;
 							while(i < 47){
-								double avg = _math_average(value_array[i], window_size);
-								double std = _math_stdev(_math_variance(value_array[i], avg, window_size));
+								double avg = _math_average_dbl(value_array[i], window_size);
+								double std = _math_stdev(_math_variance_dbl(value_array[i], avg, window_size));
 								printf(",%.2f,%.2f", avg, std);
 								i++;
 							}
