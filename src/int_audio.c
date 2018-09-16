@@ -5,7 +5,7 @@
 void pro_audio_int(char *line, audio_struct_internal *audio_frm){
 	// 1529699190,3.86
 	// [1533593349.383641, 3.1]
-	char *ptr = &line[1];
+	char *ptr = &line[0];
 	int i = 0;
 	while (ptr[i] != ',') i++;
 	ptr[i] = '\0';
