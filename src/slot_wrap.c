@@ -73,12 +73,16 @@ void process_audio_test(SLOT *slot){
                         if (isinf(std_rms)) std_rms = 0;
                         if (isinf(avg_rms)) avg_rms = 0;
 //                        _math_minmax_dbl(dbl_array, rms_count, &min_rms, &max_rms);
-		} 
+		} else {
+			rms_count = 0;
+			avg_rms = 0.0;
+			std_rms = 0.0;
+		}
                 free(dbl_array);
-                printf("%" PRIu64 ",%d,%.2f,%.2f\n", slot->slot_stop_time, rms_count, avg_rms,std_rms);
+                printf("%" PRIu64 ",%d,%.2f,%.2f\n", slot->slot_stop_time/1000000, rms_count, avg_rms,std_rms);
         	fflush(stdout);
 	}else {
-		printf("%" PRIu64 ",0,0.00,0.00.0.00.0.00\n", slot->slot_stop_time);
+		printf("%" PRIu64 ",0,0.00,0.00\n", slot->slot_stop_time/1000000);
 	}
 }
 void *analyse_thread_IP(void *Some_Structure){
