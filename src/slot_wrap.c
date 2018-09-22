@@ -196,7 +196,8 @@ void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsig
 								printf(",%.2f,%.2f", avg, std);
 								i++;
 							}
-							printf("\n");
+							printf(",rf,%d\n", slot->tag);
+							if (slot->tag == 0){ slot->tag = 1; } else { slot->tag = 0; }
 							fflush(stdout);
 							free_slot(slot);
 							frame_add(slot, object, object_size, 1);

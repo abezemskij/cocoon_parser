@@ -14,6 +14,7 @@ typedef struct SLOT{
         unsigned int n;
         FRAME *frame_array;
         uint64_t slot_stop_time;
+	unsigned char tag;
 }SLOT;
 
 SLOT* slot_init();

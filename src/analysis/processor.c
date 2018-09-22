@@ -125,8 +125,10 @@ void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 	unsigned int min = 0;
 	unsigned int max = 0;
 	double avg_dev = 0.0;
+	double avg_rssi= 0.0;
 	double avg_lat = 0.0;
 	double std_lat = 0.0;
+	double std_rssi= 0.0;
 	unsigned int  min_lat = 0.0;
 	unsigned int  max_lat = 0.0;
 
@@ -140,6 +142,7 @@ void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 					FRAME *_frame = slot->frame_array;
 					unsigned int *val_array = (unsigned int*)calloc(slot->n, sizeof(int)); // worst case scenario
 					uint64_t *dif_array = (uint64_t*)calloc(slot->n, sizeof(uint64_t));
+					unsigned int *rssi_array= (unsigned int*)calloc(slot->n, sizeof(int));
 					x = 0;
 					while(x < slot->n){ // for every packet in slot
 						wifi_struct_internal *frm = (wifi_struct_internal*)_frame->frame_ptr;
@@ -148,6 +151,7 @@ void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 							if ( (glob->Global_Types->array[k] == frm->type) && (glob->Global_Sources->array[j] == frm->src_mac) && (glob->Global_Destinations->array[l] == frm->dst_mac) ){
 								dif_array[freq] = frm->timestamp;
 								val_array[freq] = frm->len;
+								rssi_array[freq]= frm->rssi;
 								freq++;
 							}
 						}
@@ -173,7 +177,9 @@ void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 						if (isnan(avg_dev)) avg_dev= 0.0;
 						if (isnan(std)) std = 0.0;
 						if (isnan(std_lat)) std_lat = 0.0;
-						
+						if (isnan(std_rssi)) std_rssi= 0.0;
+	
+						if (isinf(std_rssi)) std_rssi= 0.0;
 						if (isinf(avg_dev)) avg_dev= 0.0;
 						if (isinf(std)) std = 0.0;
 						if (isinf(std_lat)) std_lat = 0.0;
@@ -182,21 +188,27 @@ void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 						// output
 						char *src_mac = enum_find_frame_name(glob->Global_Sources->array[j], Enumerator);
 						char *dst_mac = enum_find_frame_name(glob->Global_Destinations->array[l], Enumerator);
-						printf("%" PRIu64 ",%s,%s,%d,%d,%d,%.2f,%.2f,%.2f,%.2f\n", slot->slot_stop_time, src_mac, dst_mac, freq, glob->Global_Types->array[k], glob->Global_SubTypes->array[i], avg,std, avg_lat, std_lat);
+						printf("%" PRIu64 ",%s,%s,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,wifi,%d\n", slot->slot_stop_time, src_mac, dst_mac, freq, glob->Global_Types->array[k], glob->Global_SubTypes->array[i], avg,std, avg_rssi, std_rssi, avg_lat, std_lat, slot->tag);
 						// clear variables
-						freq = 0; avg = 0; std = 0; flag = 0; min = 0; max = 0; avg_lat = 0; std_lat = 0; min_lat = 0; max_lat = 0; avg_dev = 0; x = 0;
-						free(dif_array);
-						free(latency_array);
-						free(val_array);
+						freq = 0; avg = 0; std = 0; flag = 0; min = 0; max = 0; avg_lat = 0; std_lat = 0; min_lat = 0; max_lat = 0; avg_dev = 0; x = 0; avg_rssi = 0.0; std_rssi = 0.0;
+//						free(dif_array);
+//						free(rssi_array);
+//						free(latency_array);
+//						free(val_array);
 					} else if (freq == 1){
 						char *src_mac = enum_find_frame_name(glob->Global_Sources->array[j], Enumerator);
 						char *dst_mac = enum_find_frame_name(glob->Global_Destinations->array[l], Enumerator);
-						freq = 0; avg = 0; std = 0; flag = 0; min = 0; max = 0; avg_lat = 0; std_lat = 0; min_lat = 0; max_lat = 0; avg_dev = 0; x = 0;
-						printf("%" PRIu64 ",%s,%s,%d,%d,%d,%.2f,%.2f,%.2f,%.2f\n", slot->slot_stop_time, src_mac, dst_mac, freq, glob->Global_Types->array[k], glob->Global_SubTypes->array[i], avg, std, avg_lat, std_lat);
-						free(dif_array);
-						free(val_array);
+						freq = 0; avg = 0; std = 0; flag = 0; min = 0; max = 0; avg_lat = 0; std_lat = 0; min_lat = 0; max_lat = 0; avg_dev = 0; x = 0; avg_rssi = 0.0; std_rssi = 0.0;
+						printf("%" PRIu64 ",%s,%s,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,,%.2f,%.2f,wifi,%d\n", slot->slot_stop_time, src_mac, dst_mac, freq, glob->Global_Types->array[k], glob->Global_SubTypes->array[i], avg, std, avg_rssi, std_rssi, avg_lat, std_lat, slot->tag);
+//						free(dif_array);
+//						free(val_array);
 						//continue;
-					} /*else if (freq == 0){
+					}
+					free(dif_array);
+                                        free(rssi_array);
+                                        free(latency_array);
+                                        free(val_array);
+						 /*else if (freq == 0){
 						char src_mac[] = "0";
 						char dst_mac[] = "0";
 						freq = 0; avg = 0; std = 0; flag = 0; min = 0; max = 0; avg_lat = 0; std_lat = 0; min_lat = 0; max_lat = 0; avg_dev = 0; x = 0;
@@ -213,7 +225,7 @@ void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 		}
 		i++;
 	}
-	if (i == 0) printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time);
+	if (i == 0) printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,wifi,%d\n", slot->slot_stop_time, slot->tag);
 }
 
 void cpu_zbee_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
@@ -288,7 +300,7 @@ void cpu_zbee_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 					//char *src_name = enum_find_frame_name(glob->Global_Sources->array[j], Enumerator);
 					//char *dst_name = enum_find_frame_name(glob->Global_Destinations->array[k], Enumerator);
 					
-					printf("%" PRIu64 ",%04x,%04x,%d,%d,%.2f,%.2f,%.2f,%.2f\n",
+					printf("%" PRIu64 ",%04x,%04x,%d,%d,%.2f,%.2f,%.2f,%.2f,zigbee,%d\n",
 					slot->slot_stop_time, glob->Global_Sources->array[i], glob->Global_Destinations->array[k],
 					// protocol
 					glob->Global_Types->array[j],
@@ -297,13 +309,13 @@ void cpu_zbee_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 					// size
 					avg_sz, std_sz,//min_sz, max_sz, std_sz,
 					// latency
-					avg_lat, std_lat//min_lat, max_lat, std_lat
+					avg_lat, std_lat, slot->tag//min_lat, max_lat, std_lat
 					 );
 				} else if (freq == 1){
 					_math_minmax(len_array, freq, &min_sz, &max_sz); avg_sz = min_sz; std_sz = 0; // one packet: avg = min = max, std = inf
 					avg_lat = 0.0; std_lat = 0.0; min_lat = 0; max_lat = 0;
 
-					printf("%" PRIu64 ",%04x,%04x,%d,%d,%.2f,%.2f,%.2f,%.2f\n",
+					printf("%" PRIu64 ",%04x,%04x,%d,%d,%.2f,%.2f,%.2f,%.2f,zigbee,%d\n",
 					slot->slot_stop_time, glob->Global_Sources->array[i], glob->Global_Destinations->array[k],
 					// protocol
 					glob->Global_Types->array[j],
@@ -312,7 +324,7 @@ void cpu_zbee_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 					// size
 					avg_sz, std_sz,
 					// latency
-					avg_lat, std_lat
+					avg_lat, std_lat, slot->tag
 					 );
 				} else if (freq == 0){
 					//printf("0");
@@ -330,7 +342,7 @@ void cpu_zbee_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 	}
 	if (i == 0){
 		// no packets were sent
-		printf("%" PRIu64 ",0,0,0,0,0,0,0,0\n", slot->slot_stop_time); // possibly needs to move in to an if statement
+		printf("%" PRIu64 ",0,0,0,0,0,0,0,0,zigbee,%d\n", slot->slot_stop_time, slot->tag); // possibly needs to move in to an if statement
 	}
 }
 
@@ -418,7 +430,7 @@ void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 							char *dst_name = enum_find_frame_name(glob->Global_Destinations->array[k], Enumerator);
 							
 							//printf("%" PRIu64 ",\e[32m%s\e[0m,\e[33m%s\e[0m,%d,%d,%d,%d,%.2f,%d,%d,%.2f,%.2f,%d,%d,%.2f,%.2f,%d,%d,%.2f\n",
-							printf("%" PRIu64 ",\e[32m%s\e[0m,\e[33m%s\e[0m,%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
+							printf("%" PRIu64 ",\e[32m%s\e[0m,\e[33m%s\e[0m,%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,ip,%d\n",
 							slot->slot_stop_time, src_name, dst_name,
 							// protocol
 							glob->Global_Types->array[j],
@@ -433,7 +445,7 @@ void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 							// size
 							avg_sz,  std_sz, //min_sz, max_sz, std_sz,
 							// latency
-							avg_lat, std_lat //min_lat, max_lat, std_lat
+							avg_lat, std_lat, slot->tag //min_lat, max_lat, std_lat
 							 );
 						} else if (freq == 1){
 							char *src_name = enum_find_frame_name(glob->Global_Sources->array[i], Enumerator);
@@ -443,7 +455,7 @@ void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 							_math_minmax(ttl_array, freq, &min_ttl, &max_ttl); avg_ttl = min_ttl; std_ttl = 0;
 							avg_lat = 0.0; std_lat = 0.0; min_lat = 0; max_lat = 0;
 
-							printf("%" PRIu64 ",\e[32m%s\e[0m,\e[33m%s\e[0m,%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
+							printf("%" PRIu64 ",\e[32m%s\e[0m,\e[33m%s\e[0m,%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,ip,%d\n",
 							slot->slot_stop_time, src_name, dst_name,
 							// protocol
 							glob->Global_Types->array[j],
@@ -458,7 +470,7 @@ void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 							// size
 							avg_sz, std_sz,
 							// latency
-							avg_lat, std_lat
+							avg_lat, std_lat, slot->tag
 							 );
 						} else if (freq == 0){
 							//printf("0");
@@ -483,7 +495,7 @@ void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 	}
 	if (i == 0){
 		// no packets were sent
-		printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time); // possibly needs to move in to an if statement
+		printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0,ip,%d\n", slot->slot_stop_time, slot->tag); // possibly needs to move in to an if statement
 	}
 }
 

@@ -55,6 +55,7 @@ void *thread_process(void *structure){
 			sem_wait(&semaphore);
 //			usleep(400000);
 			analyse_thread_IP(structure);
+			if (((PT_GLOB*)structure)->slot->tag == 0){ ((PT_GLOB*)structure)->slot->tag = 1; } else { ((PT_GLOB*)structure)->slot->tag = 0; }
 			sem_post(&semaphore);
 			busy_processing = 0;
 		}
