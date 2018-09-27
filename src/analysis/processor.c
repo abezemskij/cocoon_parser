@@ -142,7 +142,7 @@ void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 					FRAME *_frame = slot->frame_array;
 					unsigned int *val_array = (unsigned int*)calloc(slot->n, sizeof(int)); // worst case scenario
 					uint64_t *dif_array = (uint64_t*)calloc(slot->n, sizeof(uint64_t));
-					unsigned int *rssi_array= (unsigned int*)calloc(slot->n, sizeof(int));
+					int *rssi_array= (int*)calloc(slot->n, sizeof(int));
 					x = 0;
 					while(x < slot->n){ // for every packet in slot
 						wifi_struct_internal *frm = (wifi_struct_internal*)_frame->frame_ptr;
@@ -171,6 +171,8 @@ void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 						}
 						
 						avg = _math_average(val_array, freq);
+						avg_rssi = _math_average_i(rssi_array, freq);
+						std_rssi = _math_stdev(_math_variance_i(rssi_array, avg_rssi, freq));
 						std = _math_stdev(_math_variance(val_array, avg, freq));
 						avg_dev = _math_avg_dev(val_array, freq);
 
@@ -178,7 +180,8 @@ void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 						if (isnan(std)) std = 0.0;
 						if (isnan(std_lat)) std_lat = 0.0;
 						if (isnan(std_rssi)) std_rssi= 0.0;
-	
+						if (isnan(avg_rssi)) avg_rssi= 0.0;
+						if (isinf(avg_rssi)) avg_rssi= 0.0;
 						if (isinf(std_rssi)) std_rssi= 0.0;
 						if (isinf(avg_dev)) avg_dev= 0.0;
 						if (isinf(std)) std = 0.0;
@@ -198,8 +201,11 @@ void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 					} else if (freq == 1){
 						char *src_mac = enum_find_frame_name(glob->Global_Sources->array[j], Enumerator);
 						char *dst_mac = enum_find_frame_name(glob->Global_Destinations->array[l], Enumerator);
+						avg = val_array[0]; std = 0; flag = 0; min = 0; max = 0; avg_lat = 0;
+						 std_lat = 0; min_lat = 0; max_lat = 0; avg_dev = 0; x = 0; 
+						avg_rssi = rssi_array[0]; std_rssi = 0.0;
+						printf("%" PRIu64 ",%s,%s,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,wifi,%d\n", slot->slot_stop_time, src_mac, dst_mac, freq, glob->Global_Types->array[k], glob->Global_SubTypes->array[i], avg, std, avg_rssi, std_rssi, avg_lat, std_lat, slot->tag);
 						freq = 0; avg = 0; std = 0; flag = 0; min = 0; max = 0; avg_lat = 0; std_lat = 0; min_lat = 0; max_lat = 0; avg_dev = 0; x = 0; avg_rssi = 0.0; std_rssi = 0.0;
-						printf("%" PRIu64 ",%s,%s,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,,%.2f,%.2f,wifi,%d\n", slot->slot_stop_time, src_mac, dst_mac, freq, glob->Global_Types->array[k], glob->Global_SubTypes->array[i], avg, std, avg_rssi, std_rssi, avg_lat, std_lat, slot->tag);
 //						free(dif_array);
 //						free(val_array);
 						//continue;
@@ -417,7 +423,7 @@ void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 							avg_ttl= _math_average(ttl_array, freq);
 
 							std_sz = _math_stdev(_math_variance(len_array, avg_sz, freq));
-							std_ttl= _math_stdev(_math_variance(len_array, avg_ttl, freq));
+							std_ttl= _math_stdev(_math_variance(ttl_array, avg_ttl, freq));
 							avg_dev = _math_avg_dev(len_array, freq);
 
 							if (isnan(avg_dev)) avg_dev= 0.0;
@@ -430,7 +436,7 @@ void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 							char *dst_name = enum_find_frame_name(glob->Global_Destinations->array[k], Enumerator);
 							
 							//printf("%" PRIu64 ",\e[32m%s\e[0m,\e[33m%s\e[0m,%d,%d,%d,%d,%.2f,%d,%d,%.2f,%.2f,%d,%d,%.2f,%.2f,%d,%d,%.2f\n",
-							printf("%" PRIu64 ",\e[32m%s\e[0m,\e[33m%s\e[0m,%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,ip,%d\n",
+							printf("%" PRIu64 ",%s,%s,%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,ip,%d\n",
 							slot->slot_stop_time, src_name, dst_name,
 							// protocol
 							glob->Global_Types->array[j],
@@ -455,7 +461,7 @@ void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 							_math_minmax(ttl_array, freq, &min_ttl, &max_ttl); avg_ttl = min_ttl; std_ttl = 0;
 							avg_lat = 0.0; std_lat = 0.0; min_lat = 0; max_lat = 0;
 
-							printf("%" PRIu64 ",\e[32m%s\e[0m,\e[33m%s\e[0m,%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,ip,%d\n",
+							printf("%" PRIu64 ",%s,%s,%d,%d,%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,ip,%d\n",
 							slot->slot_stop_time, src_name, dst_name,
 							// protocol
 							glob->Global_Types->array[j],

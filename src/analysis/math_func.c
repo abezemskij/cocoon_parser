@@ -36,6 +36,17 @@ double _math_average(unsigned int *array, unsigned int n){
         result = result/n;
         return result;
 }
+double _math_average_i(int *array, unsigned int n){
+        double result = 0.0;
+        unsigned int i = 0;
+        while(i < n){
+                result += array[i];
+                i++;
+        }
+        result = result/n;
+        return result;
+}
+
 double _math_average_dbl(double *array, unsigned int n){
         double result = 0.0;
         unsigned int i = 0;
@@ -56,6 +67,17 @@ double _math_variance(unsigned int *array, double average, unsigned int n){
         result = result/(n-1);
         return result;
 }
+double _math_variance_i(int *array, double average, unsigned int n){
+        double result = 0.0;
+        unsigned i = 0;
+        while(i < n){
+                result += pow(((double)array[i]-average), 2);
+                i++;
+        }
+        result = result/(n-1);
+        return result;
+}
+
 double _math_variance_dbl(double *array, double average, unsigned int n){
         double result = 0.0;
         unsigned i = 0;

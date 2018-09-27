@@ -79,10 +79,10 @@ void process_audio_test(SLOT *slot){
 			std_rms = 0.0;
 		}
                 free(dbl_array);
-                printf("%" PRIu64 ",%d,%.2f,%.2f\n", slot->slot_stop_time, rms_count, avg_rms,std_rms);
+                printf("%" PRIu64 ",%d,%.2f,%.2f,audio,%d\n", slot->slot_stop_time, rms_count, avg_rms,std_rms, slot->tag);
         	fflush(stdout);
 	}else {
-		printf("%" PRIu64 ",0,0.00,0.00\n", slot->slot_stop_time);
+		printf("%" PRIu64 ",0,0.00,0.00,audio,%d\n", slot->slot_stop_time, slot->tag);
 	}
 }
 void *analyse_thread_IP(void *Some_Structure){
