@@ -1,6 +1,6 @@
 #include "argread.h"
 
-unsigned short extract_flag(char *arg, unsigned short argument_flags, char *in_filename_ptr, char *out_filename_ptr, unsigned char *window_val){
+unsigned short extract_flag(char *arg, unsigned short argument_flags, char *in_filename_ptr, char *out_filename_ptr, unsigned char *window_val, unsigned long *epoch){
         unsigned short args = argument_flags;
         if(strcmp(arg, "-l") == 0){
                 args |= LIVE_FLAG;
@@ -27,7 +27,10 @@ unsigned short extract_flag(char *arg, unsigned short argument_flags, char *in_f
 	} else if (strcmp(arg, "-d") == 0){
 		args |= WINDO_FLA;
 		args |= WINDOW_VA;
-	} else {
+	} else if (strcmp(arg, "-e") == 0){
+		args |= SYNCHRONI;
+		args |= PARAMETERF;
+	}else {
                 if ((args & PARAMETERF) != 0){
                         if (((args & IN_F_FLAG) != 0)){
                                 char *t = arg;
@@ -45,6 +48,11 @@ unsigned short extract_flag(char *arg, unsigned short argument_flags, char *in_f
                                 memcpy(out_filename_ptr, arg, i);
                                 args ^= PARAMETERF; args ^= OU_F_FLAG; return args;
                         }
+			if (((args & SYNCHRONI) != 0)){
+				unsigned long _epoch = atol(arg);
+				memcpy((void*)epoch, (void*)&_epoch, sizeof(long));
+				args ^= PARAMETERF; args ^= SYNCHRONI; return args;
+			}
                 } else if ((args & WINDOW_VA) != 0) {
 			*window_val = atoi(arg);
 			args ^= WINDOW_VA; args ^=WINDO_FLA; return args;
@@ -54,12 +62,12 @@ unsigned short extract_flag(char *arg, unsigned short argument_flags, char *in_f
 }
 
 
-unsigned short argument_flagger(int argc, char** argv, unsigned short argument_flags, char *in_file, char *out_file, unsigned char *window_val){
+unsigned short argument_flagger(int argc, char** argv, unsigned short argument_flags, char *in_file, char *out_file, unsigned char *window_val, unsigned long *epoch){
         unsigned char i = 1;
 	unsigned short local_args = argument_flags;
         if (argc > 1){
                 while(--argc){
-                        local_args = extract_flag(argv[i], local_args, in_file, out_file, window_val);
+                        local_args = extract_flag(argv[i], local_args, in_file, out_file, window_val, epoch);
                         i++;
                         if (local_args & HELP_FLAG) break; // if help is set then break the loop and show help
 			argument_flags |= local_args;

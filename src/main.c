@@ -31,7 +31,8 @@ unsigned char eapol_flag = 0;
 unsigned char process_flag = 5;
 unsigned char window_seconds = 0;
 unsigned char busy_processing = 0;
-
+unsigned char synchronized = 0;
+unsigned long start_proc_epoch = 0;
 Enum_Type *Enumerator_Addr = (Enum_Type *)calloc(1, sizeof(Enum_Type));
 Enum_Type *Enumerator_Proto = (Enum_Type *)calloc(1, sizeof(Enum_Type));
 SLOT *slot = slot_init();
@@ -44,7 +45,7 @@ void *thread_sleep(void *num){
 	int *window = (int*)num;
 	while(1){
 		usleep(1000000*(*window));
-		if (busy_processing == 0) busy_processing = 1;
+		if ((busy_processing == 0) && (synchronized == 1)) busy_processing = 1;
 	}
 	return 0;
 }
@@ -56,6 +57,7 @@ void *thread_process(void *structure){
 //			usleep(400000);
 			analyse_thread_IP(structure);
 			if (((PT_GLOB*)structure)->slot->tag == 0){ ((PT_GLOB*)structure)->slot->tag = 1; } else { ((PT_GLOB*)structure)->slot->tag = 0; }
+			printf("~\n"); fflush(stdout);
 			sem_post(&semaphore);
 			busy_processing = 0;
 		}
@@ -63,10 +65,23 @@ void *thread_process(void *structure){
 	}
 	return 0;
 }
-
+void *thread_synchronize(void *s){
+	while(synchronized == 0){
+		if (synchronized == 0){
+			unsigned long epoch = (unsigned long)time(NULL);
+			if (epoch > start_proc_epoch) synchronized = 1;
+//			printf("%lu / %lu\n", epoch, start_proc_epoch);
+//			fflush(stdout);
+			usleep(10000);
+		}
+	}
+}
 void *thread_conv_line_slot(void *pt_struct){
 	SLOT *_t_slot = ((PT_GLOB*)pt_struct)->slot;
 	char buffer[2048];
+	while((fgets(buffer, 2048, stdin) != NULL)){
+		if (synchronized == 1) break;
+	}
 	while((fgets(buffer, 2048, stdin) != NULL)){
 		sem_wait(&semaphore);
 		if (busy_processing != 1){
@@ -122,10 +137,13 @@ void test_main(unsigned char type){
 	pt_struct.semaphore = &semaphore;
 	pt_struct.type = type; // for IP test
 	pt_struct.window = window_seconds;
-	pthread_t process_lines, timer, process;
+	pthread_t process_lines, timer, process, synchro;
+//	printf("Stage 0: Synchro\n");
+	pthread_create(&synchro, NULL, thread_synchronize, NULL);
 	pthread_create(&process_lines, NULL, thread_conv_line_slot, (void*)&pt_struct);
 	pthread_create(&timer, NULL, thread_sleep, (void*)&pt_struct.window);
 	pthread_create(&process, NULL, thread_process,(void*)&pt_struct);
+	pthread_join(synchro, NULL);
 	pthread_join(process_lines, NULL);
 	pthread_join(timer,NULL);
 	pthread_join(process, NULL);
@@ -190,7 +208,7 @@ int main(int argc, char *argv[])
 {
 	//printf("Hello World, %s\n", argv[0]);
 	char *path = extract_path(argv[0]);
-	usleep(1000000); // delay to allow to initially
+//	usleep(1000000); // delay to allow to initially
 	//Enum_Type *Enumerator_Addr = (Enum_Type *)calloc(1, sizeof(Enum_Type));
 	//Enum_Type *Enumerator_Proto = (Enum_Type *)calloc(1, sizeof(Enum_Type));
 //	enum_init(&Enum_Start);
@@ -205,7 +223,9 @@ int main(int argc, char *argv[])
 
 	// process arguments
 	
-	argument_flags = argument_flagger(argc, argv, argument_flags, in_filename_ptr, out_filename_ptr, &window_seconds);
+	argument_flags = argument_flagger(argc, argv, argument_flags, in_filename_ptr, out_filename_ptr, &window_seconds, &start_proc_epoch);
+	if ((argument_flags & SYNCHRONI) == 0) synchronized = 1;
+//	printf("debug: %lu\n", start_proc_epoch);
 	//load_maps();
 	load_maps(argument_flags, Enumerator_Addr, argv[0]);
 	unsigned char active_slot = 0;
@@ -257,6 +277,7 @@ int main(int argc, char *argv[])
 					fclose(out_file);
 				}
 				sem_init(&semaphore, 0, 1);
+//				printf("Stage -1: Synchro\n");
 				while((fgets(line_buffer, 1024, stdin) != NULL)){
 					if (((argument_flags & ZIGB_FLAG) == ZIGB_FLAG)){
 						//printf("\nEn - %s\n", line_buffer);
@@ -291,9 +312,11 @@ int main(int argc, char *argv[])
 						//process_audio_input_live(LIVE_FLAG, line_buffer, argv[0], argument_flags, out_filename_ptr);
 						//if (process_flag == 2){ process_flag = 0; alarm(window_seconds); }
 					} else if (((argument_flags & SPECT_FLA) == SPECT_FLA)){
-						spec_struct_internal *test_spec = (spec_struct_internal*)calloc(1,sizeof(spec_struct_internal));
-						process_rf_output(line_buffer, test_spec);
-						if (test_spec->n != 0) analyse_slot_add(slot, (void*)test_spec, sizeof(spec_struct_internal), 4, Enumerator_Addr, &process_flag, window_seconds);
+						if (synchronized == 1){
+							spec_struct_internal *test_spec = (spec_struct_internal*)calloc(1,sizeof(spec_struct_internal));
+							process_rf_output(line_buffer, test_spec);
+							if (test_spec->n != 0) analyse_slot_add(slot, (void*)test_spec, sizeof(spec_struct_internal), 4, Enumerator_Addr, &process_flag, window_seconds);
+						}
 						// process_spectrum_input
 					}
 					line_count++;
