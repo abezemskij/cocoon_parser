@@ -21,8 +21,9 @@ struct Enum_Type Proto_Address;
 unsigned int Enum_Index = 0;
 unsigned char live_descriptor_write = 1;
 unsigned int Version = 1;
-
 unsigned long line_offset_increments = 1;
+
+char cpu_time_file[64];
 
 unsigned long mlk_alloc = 0;
 unsigned long mlk_free = 0;
@@ -55,9 +56,17 @@ void *thread_process(void *structure){
 		if (busy_processing == 1){
 			sem_wait(&semaphore);
 //			usleep(400000);
+			clock_t t;
+			t = clock();
 			analyse_thread_IP(structure);
 			if (((PT_GLOB*)structure)->slot->tag == 0){ ((PT_GLOB*)structure)->slot->tag = 1; } else { ((PT_GLOB*)structure)->slot->tag = 0; }
-			printf("~\n"); fflush(stdout);
+			t = clock() - t;
+			if ((argument_flags & CPU_TIMES) != 0){
+				FILE *_file = fopen(cpu_time_file, "a");
+				fprintf(_file, "%.6f\n", ((double)t)/CLOCKS_PER_SEC);
+				fclose(_file);
+			}
+//			printf("~\n"); fflush(stdout);
 			sem_post(&semaphore);
 			busy_processing = 0;
 		}
@@ -75,6 +84,7 @@ void *thread_synchronize(void *s){
 			usleep(10000);
 		}
 	}
+	return 0;
 }
 void *thread_conv_line_slot(void *pt_struct){
 	SLOT *_t_slot = ((PT_GLOB*)pt_struct)->slot;
@@ -204,6 +214,29 @@ void int_sigalarm(int sig){
 	alarm(window_seconds);
 }
 
+void prep_cpu_time_writeout(char *file, unsigned short flags){
+	unsigned short _flags = (flags & WIFI_FLAG) | (flags & ZIGB_FLAG) | (flags & IP_SHOR_F) | (flags & AUDIO_FLA) | (flags & SPECT_FLA);
+	switch(_flags){
+		case WIFI_FLAG:
+			sprintf(file, "wifi_t_cpu.csv");
+			break;
+		case ZIGB_FLAG:
+			sprintf(file, "zbee_t_cpu.csv");
+			break;
+		case IP_SHOR_F:
+			sprintf(file, "ip_s_t_cpu.csv");
+			break;
+		case AUDIO_FLA:
+			sprintf(file, "audi_t_cpu.csv");
+			break;
+		case SPECT_FLA:
+			sprintf(file, "spec_t_cpu.csv");
+			break;
+		default:
+			sprintf(file, "unhandled.csv");
+			break;
+	}
+}
 int main(int argc, char *argv[])
 {
 	//printf("Hello World, %s\n", argv[0]);
@@ -224,6 +257,7 @@ int main(int argc, char *argv[])
 	// process arguments
 	
 	argument_flags = argument_flagger(argc, argv, argument_flags, in_filename_ptr, out_filename_ptr, &window_seconds, &start_proc_epoch);
+	prep_cpu_time_writeout(cpu_time_file, argument_flags);
 	if ((argument_flags & SYNCHRONI) == 0) synchronized = 1;
 //	printf("debug: %lu\n", start_proc_epoch);
 	//load_maps();
@@ -315,7 +349,15 @@ int main(int argc, char *argv[])
 						if (synchronized == 1){
 							spec_struct_internal *test_spec = (spec_struct_internal*)calloc(1,sizeof(spec_struct_internal));
 							process_rf_output(line_buffer, test_spec);
-							if (test_spec->n != 0) analyse_slot_add(slot, (void*)test_spec, sizeof(spec_struct_internal), 4, Enumerator_Addr, &process_flag, window_seconds);
+							if (test_spec->n != 0){
+								FILE *_file;
+								clock_t time;
+								unsigned char proc = 0;
+								if (test_spec->n >= 47*window_seconds) proc = 1;
+								if (proc == 1){ _file = fopen(cpu_time_file, "a"); time = clock(); }
+								 analyse_slot_add(slot, (void*)test_spec, sizeof(spec_struct_internal), 4, Enumerator_Addr, &process_flag, window_seconds);
+								if (proc == 1){ time = clock() - time; fprintf(_file, "%.6f\n", ((double)time)/CLOCKS_PER_SEC); fclose(_file); proc =0; }
+							}
 						}
 						// process_spectrum_input
 					}

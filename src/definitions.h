@@ -24,7 +24,8 @@
 #define SPECT_FLA  1<<11 // spectrum analysis
 #define WINDO_FLA  1<<12 // window provided
 #define WINDOW_VA  1<<13 // Window value
-#define SYNCHRONI  1<<14
+#define SYNCHRONI  1<<14 // Synchronize
+#define CPU_TIMES  1<<15 // Write out cpu times
 #define WIN_MODE   1
 #define LINE_INIT  100000 // Lines initialized
 

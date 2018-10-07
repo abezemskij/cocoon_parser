@@ -16,7 +16,9 @@ unsigned short extract_flag(char *arg, unsigned short argument_flags, char *in_f
                 args |= WIFI_FLAG;
         } else if (strcmp(arg, "-z") == 0){
                 args |= ZIGB_FLAG;
-        } else if (strcmp(arg, "-s") == 0){
+        } else if (strcmp(arg, "-t_cpu") == 0){
+		args |= CPU_TIMES;
+	} else if (strcmp(arg, "-s") == 0){
                 args |= IP_SHOR_F;
         } else if (strcmp(arg, "-a") == 0){
                 args |= AUDIO_FLA;
