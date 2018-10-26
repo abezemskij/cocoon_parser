@@ -51,6 +51,7 @@ void *thread_sleep(void *num){
 	while(1){
 //		usleep(1000000*(*window));
 		read_data_from_socket(cli_sock, (char*)&pdu, sizeof(pdu));
+		printf("Parser Received: cmd: %d time: %d!\n", pdu.command, pdu.timestamp);
 		slot->slot_start_time = pdu.timestamp;
 		slot->slot_stop_time = pdu.timestamp;
 		if (pdu.command == 1) busy_processing = 1;
