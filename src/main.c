@@ -50,8 +50,13 @@ void *thread_sleep(void *num){
 	int *window = (int*)num;
 	while(1){
 //		usleep(1000000*(*window));
+		char origin[25];
+		if ((argument_flags & ZIGB_FLAG) != 0)sprintf(origin, "Zigbee");
+		if ((argument_flags & WIFI_FLAG) != 0)sprintf(origin, "Wifi");
+		if ((argument_flags & IP_SHOR_F) != 0)sprintf(origin, "IP Short");
+		if ((argument_flags & AUDIO_FLA) != 0)sprintf(origin, "Audio");
 		read_data_from_socket(cli_sock, (char*)&pdu, sizeof(pdu));
-		printf("Parser Received: cmd: %d time: %d!\n", pdu.command, pdu.timestamp);
+		printf("%s Received: cmd: %d time: %d!\n", origin, pdu.command, pdu.timestamp);
 		fflush(stdout);
 		pt_struct.slot->slot_start_time = pdu.timestamp;
 		pt_struct.slot->slot_stop_time = pdu.timestamp;

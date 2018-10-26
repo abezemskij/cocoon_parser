@@ -260,7 +260,7 @@ void cpu_zbee_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 
 	freq = 0; avg_sz = 0.0; avg_ttl = 0.0; avg_dev = 0.0; avg_lat = 0.0; std_sz = 0.0; std_ttl = 0.0; std_lat = 0.0;
 	min_sz = 0; min_ttl = 0; min_lat = 0; max_sz = 0; max_ttl = 0; max_lat = 0;
-
+	printf("In the zigbee, the number in window %d, the glob_sources: %d\n", slot->n, glob->Global_Sources->n);
 	while(i < glob->Global_Sources->n){	// for each source addr
 		k = 0;
 		while(k < glob->Global_Destinations->n){ // for each destination addr
