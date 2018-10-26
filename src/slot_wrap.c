@@ -131,7 +131,7 @@ void *analyse_thread_IP(void *Some_Structure){
                 test->slot->slot_stop_time = test->slot->slot_start_time +(1000000*test->window);
 		return 0;
 }
-void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsigned char type, Enum_Type *Enumerator, unsigned char *process_flag, unsigned char window_size){
+void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsigned char type, Enum_Type *Enumerator, unsigned char *process_flag, unsigned char window_size, LOCAL_SOCKET *sock){
 	/*if (validate_object(slot, object, type) == 0){
 		// update slot times
 		slot->slot_start_time = slot->slot_stop_time; slot->slot_stop_time += (1000000*window_size);
@@ -160,8 +160,15 @@ void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsig
 				break;
 			case 4: // ...............................................................................................
 				if (slot->n >= 47*window_size){
+						PDU pdu;
+						pdu.timestamp = 0;
+						pdu.command = 2;
+						write_data_to_socket(sock, (char*)&pdu, sizeof(pdu));
+						read_data_from_socket(sock, (char*)&pdu, sizeof(pdu));
+						int timestamp = pdu.timestamp;
 						if (slot->n <= 47*2){ // if less than 3 seconds, no point in processing avg, std etc...
 							FRAME *spec_frm = slot->frame_array;
+							((spec_struct_internal*)(spec_frm->frame_ptr))->timestamp =  timestamp;
 							printf("% " PRIu64 "", ((spec_struct_internal*)(spec_frm->frame_ptr))->timestamp);
 							int i = 0;
 							while(i < slot->n){
@@ -176,6 +183,7 @@ void analyse_slot_add(SLOT *slot, void *object, unsigned char object_size, unsig
 							slot->slot_start_time = slot->slot_stop_time; slot->slot_stop_time += (1000000*window_size);
 						} else { // 3 or higher
 							FRAME *spec_frm = slot->frame_array;
+							((spec_struct_internal*)(spec_frm->frame_ptr))->timestamp =  timestamp;
 							printf("% " PRIu64 "", ((spec_struct_internal*)(spec_frm->frame_ptr))->timestamp);
                                                         int i = 0;
 							int k = 0;

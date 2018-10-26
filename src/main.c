@@ -8,6 +8,7 @@
 #include "slot_wrap.h"
 #include "pthread.h"
 #include "semaphore.h"
+
 #define FILENAME_BUFFER 128
 
 char *descriptor_filename_start;
@@ -37,16 +38,23 @@ unsigned long start_proc_epoch = 0;
 Enum_Type *Enumerator_Addr = (Enum_Type *)calloc(1, sizeof(Enum_Type));
 Enum_Type *Enumerator_Proto = (Enum_Type *)calloc(1, sizeof(Enum_Type));
 SLOT *slot = slot_init();
-unsigned short argument_flags = 0;
 
+LOCAL_SOCKET *cli_sock = generate_free_socket();
+PDU pdu;
+unsigned short argument_flags = 0;
+int synchro_seconds = 0;
 
 sem_t semaphore;
 
 void *thread_sleep(void *num){
 	int *window = (int*)num;
 	while(1){
-		usleep(1000000*(*window));
-		if ((busy_processing == 0) && (synchronized == 1)) busy_processing = 1;
+//		usleep(1000000*(*window));
+		read_data_from_socket(cli_sock, (char*)&pdu, sizeof(pdu));
+		slot->slot_start_time = pdu.timestamp;
+		slot->slot_stop_time = pdu.timestamp;
+		if (pdu.command == 1) busy_processing = 1;
+//		if ((busy_processing == 0) && (synchronized == 1)) busy_processing = 1;
 	}
 	return 0;
 }
@@ -259,6 +267,7 @@ int main(int argc, char *argv[])
 	argument_flags = argument_flagger(argc, argv, argument_flags, in_filename_ptr, out_filename_ptr, &window_seconds, &start_proc_epoch);
 	prep_cpu_time_writeout(cpu_time_file, argument_flags);
 	if ((argument_flags & SYNCHRONI) == 0) synchronized = 1;
+	synchronized = 1;
 //	printf("debug: %lu\n", start_proc_epoch);
 	//load_maps();
 	load_maps(argument_flags, Enumerator_Addr, argv[0]);
@@ -312,6 +321,12 @@ int main(int argc, char *argv[])
 				}
 				sem_init(&semaphore, 0, 1);
 //				printf("Stage -1: Synchro\n");
+				char *test_local = "localhost\0";
+				create_tcp_client_connection(cli_sock, test_local, 31337);
+				PDU pdu_buffer;
+				read_data_from_socket(cli_sock, (char*)&pdu_buffer, sizeof(pdu_buffer));
+				if (pdu_buffer.command == 16) synchro_seconds = pdu_buffer.timestamp;
+
 				while((fgets(line_buffer, 1024, stdin) != NULL)){
 					if (((argument_flags & ZIGB_FLAG) == ZIGB_FLAG)){
 						//printf("\nEn - %s\n", line_buffer);
@@ -355,7 +370,7 @@ int main(int argc, char *argv[])
 								unsigned char proc = 0;
 								if (test_spec->n >= 47*window_seconds) proc = 1;
 								if (proc == 1){ _file = fopen(cpu_time_file, "a"); time = clock(); }
-								 analyse_slot_add(slot, (void*)test_spec, sizeof(spec_struct_internal), 4, Enumerator_Addr, &process_flag, window_seconds);
+								 analyse_slot_add(slot, (void*)test_spec, sizeof(spec_struct_internal), 4, Enumerator_Addr, &process_flag, window_seconds, cli_sock);
 								if (proc == 1){ time = clock() - time; fprintf(_file, "%.6f\n", ((double)time)/CLOCKS_PER_SEC); fclose(_file); proc =0; }
 							}
 						}
