@@ -231,7 +231,7 @@ void cpu_wifi_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 		}
 		i++;
 	}
-	if (i == 0) printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,wifi,%d\n", slot->slot_stop_time, slot->tag);
+	if (slot->n == 0) printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,wifi,%d\n", slot->slot_stop_time, slot->tag);
 }
 
 void cpu_zbee_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
@@ -260,7 +260,7 @@ void cpu_zbee_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 
 	freq = 0; avg_sz = 0.0; avg_ttl = 0.0; avg_dev = 0.0; avg_lat = 0.0; std_sz = 0.0; std_ttl = 0.0; std_lat = 0.0;
 	min_sz = 0; min_ttl = 0; min_lat = 0; max_sz = 0; max_ttl = 0; max_lat = 0;
-	printf("In the zigbee, the number in window %d, the glob_sources: %d\n", slot->n, glob->Global_Sources->n);
+//	printf("In the zigbee, the number in window %d, the glob_sources: %d\n", slot->n, glob->Global_Sources->n);
 	while(i < glob->Global_Sources->n){	// for each source addr
 		k = 0;
 		while(k < glob->Global_Destinations->n){ // for each destination addr
@@ -346,7 +346,7 @@ void cpu_zbee_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 		}
 		i++;
 	}
-	if (i == 0){
+	if (slot->n == 0){
 		// no packets were sent
 		printf("%" PRIu64 ",0,0,0,0,0,0,0,0,zigbee,%d\n", slot->slot_stop_time, slot->tag); // possibly needs to move in to an if statement
 	}
@@ -499,7 +499,7 @@ void cpu_ip_out(SLOT *slot, GLOBAL_KNOWLEDGE *glob, Enum_Type *Enumerator){
 		}
 		i++;
 	}
-	if (i == 0){
+	if (slot->n == 0){
 		// no packets were sent
 		printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0,ip,%d\n", slot->slot_stop_time, slot->tag); // possibly needs to move in to an if statement
 	}

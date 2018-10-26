@@ -50,13 +50,13 @@ void *thread_sleep(void *num){
 	int *window = (int*)num;
 	while(1){
 //		usleep(1000000*(*window));
-		char origin[25];
-		if ((argument_flags & ZIGB_FLAG) != 0)sprintf(origin, "Zigbee");
-		if ((argument_flags & WIFI_FLAG) != 0)sprintf(origin, "Wifi");
-		if ((argument_flags & IP_SHOR_F) != 0)sprintf(origin, "IP Short");
-		if ((argument_flags & AUDIO_FLA) != 0)sprintf(origin, "Audio");
+//		char origin[25];
+//		if ((argument_flags & ZIGB_FLAG) != 0)sprintf(origin, "Zigbee");
+//		if ((argument_flags & WIFI_FLAG) != 0)sprintf(origin, "Wifi");
+//		if ((argument_flags & IP_SHOR_F) != 0)sprintf(origin, "IP Short");
+//		if ((argument_flags & AUDIO_FLA) != 0)sprintf(origin, "Audio");
 		read_data_from_socket(cli_sock, (char*)&pdu, sizeof(pdu));
-		printf("%s Received: cmd: %d time: %d!\n", origin, pdu.command, pdu.timestamp);
+//		printf("%s Received: cmd: %d time: %d!\n", origin, pdu.command, pdu.timestamp);
 		fflush(stdout);
 		pt_struct.slot->slot_start_time = pdu.timestamp;
 		pt_struct.slot->slot_stop_time = pdu.timestamp;
@@ -82,6 +82,7 @@ void *thread_process(void *structure){
 				fclose(_file);
 			}
 //			printf("~\n"); fflush(stdout);
+			fflush(stdout);
 			sem_post(&semaphore);
 			busy_processing = 0;
 		}

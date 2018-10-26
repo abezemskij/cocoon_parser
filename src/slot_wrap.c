@@ -81,8 +81,10 @@ void process_audio_test(SLOT *slot){
                 free(dbl_array);
                 printf("%" PRIu64 ",%d,%.2f,%.2f,audio,%d\n", slot->slot_stop_time, rms_count, avg_rms,std_rms, slot->tag);
         	fflush(stdout);
-	}else {
+	}
+	if (slot->n == 0) {
 		printf("%" PRIu64 ",0,0.00,0.00,audio,%d\n", slot->slot_stop_time, slot->tag);
+		fflush(stdout);
 	}
 }
 void *analyse_thread_IP(void *Some_Structure){
@@ -103,7 +105,7 @@ void *analyse_thread_IP(void *Some_Structure){
 			if (test->slot->n != 0){
 				test->slot->slot_start_time = *(uint64_t*)(test->slot->frame_array->frame_ptr);
 				test->slot->slot_stop_time = (test->slot->slot_start_time)+(1000000*test->window);
-			} else { printf("laskdlaksdk\n"); }
+			} else { fflush(stdout); }
 		}
 		switch(test->type){
 			case 1:
