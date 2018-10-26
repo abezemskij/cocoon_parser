@@ -38,7 +38,7 @@ unsigned long start_proc_epoch = 0;
 Enum_Type *Enumerator_Addr = (Enum_Type *)calloc(1, sizeof(Enum_Type));
 Enum_Type *Enumerator_Proto = (Enum_Type *)calloc(1, sizeof(Enum_Type));
 SLOT *slot = slot_init();
-
+PT_GLOB pt_struct;
 LOCAL_SOCKET *cli_sock = generate_free_socket();
 PDU pdu;
 unsigned short argument_flags = 0;
@@ -52,8 +52,9 @@ void *thread_sleep(void *num){
 //		usleep(1000000*(*window));
 		read_data_from_socket(cli_sock, (char*)&pdu, sizeof(pdu));
 		printf("Parser Received: cmd: %d time: %d!\n", pdu.command, pdu.timestamp);
-		slot->slot_start_time = pdu.timestamp;
-		slot->slot_stop_time = pdu.timestamp;
+		fflush(stdout);
+		pt_struct.slot->slot_start_time = pdu.timestamp;
+		pt_struct.slot->slot_stop_time = pdu.timestamp;
 		if (pdu.command == 1) busy_processing = 1;
 //		if ((busy_processing == 0) && (synchronized == 1)) busy_processing = 1;
 	}
@@ -150,7 +151,7 @@ void *thread_conv_line_slot(void *pt_struct){
 
 void test_main(unsigned char type){
 	SLOT *t_slot = slot_init();
-	PT_GLOB pt_struct;
+//	PT_GLOB pt_struct;
 	pt_struct.slot = t_slot;
 	pt_struct.Addresses = Enumerator_Addr;
 	pt_struct.semaphore = &semaphore;
