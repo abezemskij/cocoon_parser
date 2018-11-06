@@ -10,7 +10,7 @@
 #include "semaphore.h"
 
 #define FILENAME_BUFFER 128
-
+char *interface = (char*)calloc(40, sizeof(char));
 char *descriptor_filename_start;
 
 struct ZigBee_Frame Global_ZB_Pkt;
@@ -71,7 +71,7 @@ void *thread_process(void *structure){
 	while(1){
 		if (busy_processing == 1){
 			sem_wait(&semaphore);
-			fprintf(stderr, "\nD - Process thread has started.\n");
+			fprintf(stderr, "\nD - Process thread has started. [%s]\n", interface);
 //			usleep(400000);
 			clock_t t;
 			t = clock();
@@ -85,7 +85,7 @@ void *thread_process(void *structure){
 			}
 //			printf("~\n"); fflush(stdout);
 			fflush(stdout);
-			fprintf(stderr, "\nD - Process thread released.\n");
+			fprintf(stderr, "\nD - Process thread released. [%s]\n");
 			sem_post(&semaphore);
 			busy_processing = 0;
 		}
@@ -110,12 +110,12 @@ void *thread_conv_line_slot(void *pt_struct){
 	SLOT *_t_slot = ((PT_GLOB*)pt_struct)->slot;
 	char buffer[2048];
 	while((fgets(buffer, 2048, stdin) != NULL)){
-		fprintf(stderr, "\nD - Convert thread is dropping.\n");
+		fprintf(stderr, "\nD - Convert thread is dropping [%s].\n", interface);
 		if (synchronized == 1) break;
 	}
 	while((fgets(buffer, 2048, stdin) != NULL)){
 		sem_wait(&semaphore);
-		fprintf(stderr, "\nD - Convert thread has started.\n");
+		if (argument_flags & AUDIO_FLA) fprintf(stderr, "\nD - Convert thread has started. [%s]\n", interface);
 		if (busy_processing != 1){
 			void *structure = 0;
 			unsigned char obj_size = 0;
@@ -157,7 +157,7 @@ void *thread_conv_line_slot(void *pt_struct){
 //			frame_add(_t_slot, test_ip, sizeof(ip_struct_internal), 1);
 //			printf(".");
 		}
-		fprintf(stderr, "\nD - Convert thread released.\n");
+		if (argument_flags & AUDIO_FLA) fprintf(stderr, "\nD - Convert thread released. [%s]\n");
 		sem_post(&semaphore);
 	}
 	return 0;
@@ -214,7 +214,7 @@ void int_sigalarm(int sig){
 	//printf("\n!!! INTERRUPT !!!\n");
 	process_flag = 1;
 	if (slot->n < 1){
-		switch(identify_arg()){
+		switch(identify_arg()){fprintf(stderr, "\nD - This shouldn't happen\n");
 			case 1:	// wifi
 				printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time);
 				break;
@@ -288,7 +288,10 @@ int main(int argc, char *argv[])
 	//load_maps();
 	load_maps(argument_flags, Enumerator_Addr, argv[0]);
 	unsigned char active_slot = 0;
-	
+	if (argument_flags & ZIGB_FLAG) memcpy(interface, "Zigbee", 6);
+	if (argument_flags & WIFI_FLAG) memcpy(interface, "WIFI", 4);
+	if (argument_flags & AUDIO_FLA) memcpy(interface, "Audio", 5);
+	if (argument_flags & IP_SHOR_F) memcpy(interface, "IP", 2);
 	if (window_seconds != 0 ){
 		if ((argument_flags & SPECT_FLA) != SPECT_FLA){
 //			signal(SIGALRM, int_sigalarm);
