@@ -56,6 +56,7 @@ void *thread_sleep(void *num){
 //		if ((argument_flags & IP_SHOR_F) != 0)sprintf(origin, "IP Short");
 //		if ((argument_flags & AUDIO_FLA) != 0)sprintf(origin, "Audio");
 		read_data_from_socket(cli_sock, (char*)&pdu, sizeof(pdu));
+		fprintf(stderr, "D - Synchro thread has received input.\n");
 //		printf("%s Received: cmd: %d time: %d!\n", origin, pdu.command, pdu.timestamp);
 		fflush(stdout);
 		pt_struct.slot->slot_start_time = pdu.timestamp;
@@ -70,6 +71,7 @@ void *thread_process(void *structure){
 	while(1){
 		if (busy_processing == 1){
 			sem_wait(&semaphore);
+			fprintf(stderr, "D - Process thread has started.\n");
 //			usleep(400000);
 			clock_t t;
 			t = clock();
@@ -83,6 +85,7 @@ void *thread_process(void *structure){
 			}
 //			printf("~\n"); fflush(stdout);
 			fflush(stdout);
+			fprintf(stderr, "D - Process thread released.\n");
 			sem_post(&semaphore);
 			busy_processing = 0;
 		}
@@ -93,6 +96,7 @@ void *thread_process(void *structure){
 void *thread_synchronize(void *s){
 	while(synchronized == 0){
 		if (synchronized == 0){
+			fprintf(stderr, "D - Synchro Old Thread.\n");
 			unsigned long epoch = (unsigned long)time(NULL);
 			if (epoch > start_proc_epoch) synchronized = 1;
 //			printf("%lu / %lu\n", epoch, start_proc_epoch);
@@ -106,10 +110,12 @@ void *thread_conv_line_slot(void *pt_struct){
 	SLOT *_t_slot = ((PT_GLOB*)pt_struct)->slot;
 	char buffer[2048];
 	while((fgets(buffer, 2048, stdin) != NULL)){
+		fprintf(stderr, "D - Convert thread is dropping.\n");
 		if (synchronized == 1) break;
 	}
 	while((fgets(buffer, 2048, stdin) != NULL)){
 		sem_wait(&semaphore);
+		fprintf(stderr, "D - Convert thread has started.\n");
 		if (busy_processing != 1){
 			void *structure = 0;
 			unsigned char obj_size = 0;
@@ -144,12 +150,14 @@ void *thread_conv_line_slot(void *pt_struct){
 					exit(0);
 			}
 			frame_add(_t_slot, structure, obj_size, 1);
+			//fprintf(stderr, "D - Buffer: %s.\n", buffer);
 
 //			ip_struct_internal *test_ip = (ip_struct_internal*)calloc(1,sizeof(ip_struct_internal));
 //			pro_short_int(buffer, test_ip, Enumerator_Addr);
 //			frame_add(_t_slot, test_ip, sizeof(ip_struct_internal), 1);
 //			printf(".");
 		}
+		fprintf(stderr, "D - Convert thread released.\n");
 		sem_post(&semaphore);
 	}
 	return 0;
