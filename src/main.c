@@ -56,7 +56,7 @@ void *thread_sleep(void *num){
 //		if ((argument_flags & IP_SHOR_F) != 0)sprintf(origin, "IP Short");
 //		if ((argument_flags & AUDIO_FLA) != 0)sprintf(origin, "Audio");
 		read_data_from_socket(cli_sock, (char*)&pdu, sizeof(pdu));
-		fprintf(stderr, "\nD - Synchro thread has received input.\n");
+		fprintf(stderr, "\nD - Synchro thread has received input. [%s]\n", interface);
 //		printf("%s Received: cmd: %d time: %d!\n", origin, pdu.command, pdu.timestamp);
 		fflush(stdout);
 		pt_struct.slot->slot_start_time = pdu.timestamp;
