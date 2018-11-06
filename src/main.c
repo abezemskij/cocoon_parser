@@ -85,7 +85,7 @@ void *thread_process(void *structure){
 			}
 //			printf("~\n"); fflush(stdout);
 			fflush(stdout);
-			fprintf(stderr, "\nD - Process thread released. [%s]\n");
+			fprintf(stderr, "\nD - Process thread released. [%s]\n", interface);
 			sem_post(&semaphore);
 			busy_processing = 0;
 		}
@@ -157,7 +157,7 @@ void *thread_conv_line_slot(void *pt_struct){
 //			frame_add(_t_slot, test_ip, sizeof(ip_struct_internal), 1);
 //			printf(".");
 		}
-		if (argument_flags & AUDIO_FLA) fprintf(stderr, "\nD - Convert thread released. [%s]\n");
+		if (argument_flags & AUDIO_FLA) fprintf(stderr, "\nD - Convert thread released. [%s]\n", interface);
 		sem_post(&semaphore);
 	}
 	return 0;
