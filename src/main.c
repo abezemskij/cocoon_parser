@@ -115,7 +115,7 @@ void *thread_conv_line_slot(void *pt_struct){
 	}
 	while((fgets(buffer, 2048, stdin) != NULL)){
 		sem_wait(&semaphore);
-		if (argument_flags & AUDIO_FLA) fprintf(stderr, "\nD - Convert thread has started. [%s]\n", interface);
+//		if (argument_flags & AUDIO_FLA) fprintf(stderr, "\nD - Convert thread has started. [%s]\n", interface);
 		if (busy_processing != 1){
 			void *structure = 0;
 			unsigned char obj_size = 0;
@@ -157,7 +157,7 @@ void *thread_conv_line_slot(void *pt_struct){
 //			frame_add(_t_slot, test_ip, sizeof(ip_struct_internal), 1);
 //			printf(".");
 		}
-		if (argument_flags & AUDIO_FLA) fprintf(stderr, "\nD - Convert thread released. [%s]\n", interface);
+//		if (argument_flags & AUDIO_FLA) fprintf(stderr, "\nD - Convert thread released. [%s]\n", interface);
 		sem_post(&semaphore);
 	}
 	return 0;
