@@ -37,11 +37,11 @@ void main(int argc, char *argv[]){
 		printf("Failed to create a socket!\n");
 		return;
 	}
-	printf("The TCP server has been created!\n");
+//	printf("The TCP server has been created!\n");
 
-	printf("Awaiting the bottleneck\n");
+//	printf("Awaiting the bottleneck\n");
 	cli[0] = accept_local_tcp_socket(sock); cli_connected++;
-	printf("Received a first connection\n");
+//	printf("Received a first connection\n");
 	fflush(stdout);
 	PDU buffer;
 //	read_data_from_socket(cli[0], buffer, sizeof(buffer));

@@ -71,7 +71,7 @@ void *thread_process(void *structure){
 	while(1){
 		if (busy_processing == 1){
 			sem_wait(&semaphore);
-			fprintf(stderr, "\nD - Process thread has started. [%s]\n", interface);
+//			fprintf(stderr, "\nD - Process thread has started. [%s]\n", interface);
 //			usleep(400000);
 			clock_t t;
 			t = clock();
@@ -85,7 +85,7 @@ void *thread_process(void *structure){
 			}
 //			printf("~\n"); fflush(stdout);
 			fflush(stdout);
-			fprintf(stderr, "\nD - Process thread released. [%s]\n", interface);
+//			fprintf(stderr, "\nD - Process thread released. [%s]\n", interface);
 			sem_post(&semaphore);
 			busy_processing = 0;
 		}
@@ -109,7 +109,7 @@ void *thread_synchronize(void *s){
 void *thread_conv_line_slot(void *pt_struct){
 	SLOT *_t_slot = ((PT_GLOB*)pt_struct)->slot;
 	char buffer[2048];
-	while((fgets(buffer, 2048, stdin) != NULL)){
+	while((fgets(buffer, 2048, stdin) != NULL) && (synchronized == 0)){
 		fprintf(stderr, "\nD - Convert thread is dropping [%s].\n", interface);
 		if (synchronized == 1) break;
 	}
