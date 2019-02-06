@@ -214,7 +214,7 @@ void int_sigalarm(int sig){
 	//printf("\n!!! INTERRUPT !!!\n");
 	process_flag = 1;
 	if (slot->n < 1){
-		switch(identify_arg()){fprintf(stderr, "\nD - This shouldn't happen\n");
+		switch(identify_arg()){
 			case 1:	// wifi
 				printf("%" PRIu64 ",0,0,0,0,0,0,0,0,0,0,0,0,0\n", slot->slot_stop_time);
 				break;
@@ -340,7 +340,8 @@ int main(int argc, char *argv[])
 				}
 				sem_init(&semaphore, 0, 1);
 //				printf("Stage -1: Synchro\n");
-				char *test_local = "localhost\0";
+//				char *test_local = "localhost\0";
+				char test_local[] = "localhost\0";
 				create_tcp_client_connection(cli_sock, test_local, 31337);
 				PDU pdu_buffer;
 				read_data_from_socket(cli_sock, (char*)&pdu_buffer, sizeof(pdu_buffer));

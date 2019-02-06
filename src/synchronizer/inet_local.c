@@ -17,7 +17,7 @@ void clear_socket_free(struct LOCAL_SOCKET *_socket){
 int create_tcp_server_connection(struct LOCAL_SOCKET* _socket, int port){
 	int err = 0;
 	int opt = 1;
-	_socket->socket_no = socket(AF_INET, SOCK_STREAM, (int)NULL);
+	_socket->socket_no = socket(AF_INET, SOCK_STREAM, (int)0);
 	if (_socket->socket_no < 0) return -1; // -1 error in issuing the socket
 	err = setsockopt( _socket->socket_no, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 	if (err == -1) return -2; // -2 error in setting options
@@ -37,7 +37,7 @@ int create_tcp_server_connection(struct LOCAL_SOCKET* _socket, int port){
 int create_udp_server_connection(struct LOCAL_SOCKET* _socket, int port){
 	int err = 0;
 	int opt = 1;
-	_socket->socket_no = socket(AF_INET, SOCK_DGRAM, (int)NULL);
+	_socket->socket_no = socket(AF_INET, SOCK_DGRAM, (int)0);
 	if (_socket->socket_no < 0) return -1;
 	err = setsockopt(_socket->socket_no, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 	if (err == -1) return -2;
@@ -54,7 +54,7 @@ int create_tcp_client_connection(struct LOCAL_SOCKET* _socket, char *ip_addr, in
 	int err = 0;
 	int opt = 1;
 	struct hostent *server;
-	_socket->socket_no = socket(AF_INET, SOCK_STREAM, (int)NULL);
+	_socket->socket_no = socket(AF_INET, SOCK_STREAM, (int)0);
 	if (_socket->socket_no < 0) return -1;
 	// configure the destination
 	server = gethostbyname(ip_addr);
@@ -70,7 +70,7 @@ int create_udp_client_connection(struct LOCAL_SOCKET* _socket, char *ip_addr, in
 	int err = 0;
 	int opt = 1;
 	struct hostent *server;
-	_socket->socket_no = socket(AF_INET, SOCK_DGRAM, (int)NULL);
+	_socket->socket_no = socket(AF_INET, SOCK_DGRAM, (int)0);
 	if (_socket->socket_no < 0) return -1;
 
 	server = gethostbyname(ip_addr);
@@ -90,6 +90,7 @@ struct LOCAL_SOCKET* accept_local_tcp_socket(struct LOCAL_SOCKET *_socket){
 		free(_socket_cli);
 		return (struct LOCAL_SOCKET*)-1;
 	}
+	return _socket_cli;
 }
 
 int read_data_from_socket(struct LOCAL_SOCKET* _socket, char *buffer, int buffer_len){
@@ -99,7 +100,7 @@ int read_data_from_socket(struct LOCAL_SOCKET* _socket, char *buffer, int buffer
 }
 
 int write_data_to_socket(struct LOCAL_SOCKET* _socket, char *buffer, int length){
-	int len = send(_socket->socket_no, buffer, length, (int)NULL);
+	int len = send(_socket->socket_no, buffer, length, (int)0);
 	if (len < 0) return -1; // error occurred
 	return len; // number of bytes sent
 }

@@ -18,7 +18,11 @@ void process_rf_output(char *ptr, spec_struct_internal *spec_frm){
 	// 2018-07-22, 18:10:16, 2493000000, 2495000000, 2000000.00, 1, 15.88, 15.88
 	// one output
 	unsigned char validate = 0; // test
-	if (strncmp(ptr, "2018", 4) == 0){ // validated line
+	unsigned char t_valid = strncmp(ptr, "2018", 4);
+	if (t_valid != 0 ){
+		t_valid = strncmp(ptr, "2019", 4);
+	}
+	if (t_valid == 0){ // validated line
 		// create timestamp, extract only db's
 		char *t_ptr = ptr;
 		int i = 0;
